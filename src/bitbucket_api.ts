@@ -44,8 +44,8 @@ export default class BitBucketAPI implements IResourceWorker {
 
   async getResource(pathParts: string[]): Promise<any> {
     let completePath = pathParts.join('/');
-    let url = `${this.baseUrl}/${completePath}/`;
-    this.verbose && terminal(`bb-api: fetching ${url}\n`);
+    let url = `${this.baseUrl}/${completePath}`;
+    this.verbose && terminal.green(`bb-api: fetching ${url}\n`);
     return await this.fetchValues(url, this.maxPages);
   }
 

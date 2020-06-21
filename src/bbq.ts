@@ -82,7 +82,7 @@ class BitBucket {
 function getOptions(argv): IManagerOptions {
   const managerOptions: IManagerOptions = {
     verbose: argv.verbose,
-    synchronize: argv.synchronize,
+    forceSynchronize: argv.forceSynchronize,
     maxPages: argv.maxPages,
   };
   return managerOptions;
@@ -142,7 +142,7 @@ yargs
     description: 'The maximum number of pages to fetch',
     default: 10,
   })
-  .option('synchronize', {
+  .option('force-synchronize', {
     alias: 's',
     type: 'boolean',
     description: 'Will force synchronization with the server',
