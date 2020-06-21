@@ -1,0 +1,50 @@
+{
+  "author": "Grevinnan",
+  "bin": {
+    "bbq": "bin/bbq.js"
+  },
+  "dependencies": {
+    "osenv": "^0.1.5",
+    "superagent": "^5.2.2",
+    "terminal-kit": "^1.35.3",
+    "ts-node": "^8.10.2",
+    "typescript": "^3.9.5",
+    "uuid": "^8.1.0",
+    "xdg-basedir": "^4.0.0",
+    "yargs": "^15.3.1"
+  },
+  "description": "Bitbucket CLI Interface",
+  "devDependencies": {
+    "@types/node": "^14.0.13",
+    "@types/osenv": "^0.1.0",
+    "@types/superagent": "^4.1.7",
+    "@types/terminal-kit": "^1.28.2",
+    "@types/uuid": "^8.0.0",
+    "@types/xdg-basedir": "^4.0.2",
+    "@types/yargs": "^15.0.5"
+  },
+  "keywords": [
+    "bitbucket",
+    "api",
+    "client",
+    "command",
+    "cli",
+    "tool"
+  ],
+  "name": "bbq",
+  "scripts": {
+    "start": "nodemon --watch 'src/**/*.ts' --exec 'ts-node' src/bbq.ts",
+    "build": "tsc"
+  },
+  "version": "0.0.1",
+  "main": "bbq",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Grevinnan/bbq"
+  },
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Grevinnan/bbq/issues"
+  },
+  "homepage": "https://github.com/Grevinnan/bbq#readme"
+}

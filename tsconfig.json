@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "target": "es2020",
+    "module": "commonjs",
+    "declaration": true,
+    "outDir": "bin",
+    "rootDir": "src",
+    "types": ["node"],
+    "esModuleInterop": true,
+    "resolveJsonModule": true
+  }
+}
