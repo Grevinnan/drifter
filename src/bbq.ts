@@ -135,7 +135,7 @@ async function walkSourceTree(bb: BitBucket, repo: IRepositoryPath) {
   return null;
 }
 
-function formatRepository(repo: any) : string {
+function formatRepository(repo: any): string {
   const isPrivate = repo.is_private === true ? 'private' : 'public';
   return `${repo.full_name} ${repo.language} ${repo.size} ${isPrivate}\n`;
 }
@@ -155,7 +155,7 @@ yargs
     alias: 'm',
     type: 'number',
     description: 'The maximum number of pages to fetch',
-    default: 10,
+    default: -1,
   })
   .option('force-synchronize', {
     alias: 's',
@@ -188,83 +188,76 @@ yargs
       process.exit();
     }
   )
-  .command(
-    ['rp', 'repository'],
-    'Operations on repositories',
-    (yargs) => {
-      yargs
-        .option('list', {
-          alias: 'l',
-          type: 'boolean',
-          description: 'List your repositories',
-          default: false,
-        })
-        .option('public', {
-          alias: 'p',
-          type: 'boolean',
-          description: 'List public repositories',
-          default: false,
-        })
-        .command(
-          'show <repository>',
-          'Show repository data',
-          (yargs) => {
-            yargs
-              .positional('repository', {
-                describe: 'Repository name/uuid',
-                type: 'string',
-                default: '',
-              })
-              .option('list-files', {
-                alias: 'f',
-                type: 'boolean',
-                description: 'List repository files',
-                default: false,
-              });
-          },
-          async (argv) => {
-            let config = await getConfig();
-            let bb = new BitBucket(config, getOptions(argv));
-            // For some reason TS does not understand the type
-            let repoId: string = String(argv.repository);
-            let repo = await bb.findRepository(repoId);
-            if (!repo) {
-              terminal.error(`Could not find repository ${argv.repository}\n`);
-              process.exit();
-            }
-            argv.verbose && terminal(`found ${repo.uuid} ${repo.full_name}\n`);
-            terminal(formatRepository(repo));
-            if (argv.listFiles) {
-              let srcFiles = await walkSourceTree(bb, {
-                workspace: repo.workspace.uuid,
-                repository: repo.uuid,
-              });
-              srcFiles.forEach((file) => terminal(`${file}\n`));
-            }
+  .command(['rp', 'repository'], 'Operations on repositories', (yargs) => {
+    yargs
+      .command(
+        'show <repository>',
+        'Show repository data',
+        (yargs) => {
+          yargs
+            .positional('repository', {
+              describe: 'Repository name/uuid',
+              type: 'string',
+              default: '',
+            })
+            .option('list-files', {
+              alias: 'f',
+              type: 'boolean',
+              description: 'List repository files',
+              default: false,
+            });
+        },
+        async (argv) => {
+          let config = await getConfig();
+          let bb = new BitBucket(config, getOptions(argv));
+          // For some reason TS does not understand the type
+          let repoId: string = String(argv.repository);
+          let repo = await bb.findRepository(repoId);
+          if (!repo) {
+            terminal.error(`Could not find repository ${argv.repository}\n`);
             process.exit();
           }
-        );
-    },
-    async (argv) => {
-      let config = await getConfig();
-      let bb = new BitBucket(config, getOptions(argv));
-      if (argv.public) {
-        let values = await bb.getPublicRepositories();
-        let names = values.map((ws) => ws.full_name);
-        names.forEach((name) => terminal(`${name}\n`));
-      }
-      if (argv.list) {
-        let workspaceIds = (await bb.getWorkspaces()).map((ws) => ws.uuid);
-        for (let uuid of workspaceIds) {
-          let repositories = await bb.getRepositories(uuid);
-          repositories.forEach((repo) => terminal(formatRepository(repo)));
+          argv.verbose && terminal(`found ${repo.uuid} ${repo.full_name}\n`);
+          terminal(formatRepository(repo));
+          if (argv.listFiles) {
+            let srcFiles = await walkSourceTree(bb, {
+              workspace: repo.workspace.uuid,
+              repository: repo.uuid,
+            });
+            srcFiles.forEach((file) => terminal(`${file}\n`));
+          }
+          process.exit();
         }
-      } else {
-        yargs.showHelp();
-      }
-      process.exit();
-    }
-  )
+      )
+      .command(
+        ['list', '$0'],
+        'List repositories',
+        (yargs) => {
+          yargs.option('public', {
+            alias: 'p',
+            type: 'boolean',
+            description: 'List public repositories',
+            default: false,
+          });
+        },
+        async (argv) => {
+          let config = await getConfig();
+          let bb = new BitBucket(config, getOptions(argv));
+          if (argv.public) {
+            let values = await bb.getPublicRepositories();
+            let names = values.map((ws) => ws.full_name);
+            names.forEach((name) => terminal(`${name}\n`));
+          } else {
+            let workspaceIds = (await bb.getWorkspaces()).map((ws) => ws.uuid);
+            for (let uuid of workspaceIds) {
+              let repositories = await bb.getRepositories(uuid);
+              repositories.forEach((repo) => terminal(formatRepository(repo)));
+            }
+          }
+          process.exit();
+        }
+      );
+  })
   .command(
     ['cg', 'config'],
     'Handle your configuration',
