@@ -79,6 +79,10 @@ export default class ResourceManager {
     // Otherwise just try to get it from the server
     if (!result) {
       result = await this.bbApi.getResource(resourceId);
+      if (!result) {
+        terminal.red.error(`Could not get ${resourceId.join('/')}, aborting.\n`);
+        process.exit(1);
+      }
       this.cache.saveResource(resourceId, JSON.stringify(result));
     }
     return result;

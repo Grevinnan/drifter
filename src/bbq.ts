@@ -98,17 +98,27 @@ class SourceTreeWalker {
     this.commit = commit;
   }
 
-  async walkTree(filePath: string = '') {
+  async walkTree(pathParts: string[] = []) {
     let paths = [];
-    let sourceFiles = await this.bb.getRepositorySrc(this.repo, this.commit, filePath);
+    let sourceFiles = await this.bb.getRepositorySrc(
+      this.repo,
+      this.commit,
+      ...pathParts
+    );
     // TODO: consider escaped_path?
+    let directoryTasks = [];
     for (let file of sourceFiles) {
       if (file.type === 'commit_file') {
         paths.push(file.path);
       } else {
-        let directoryPaths = await this.walkTree(file.path);
-        paths.push(...directoryPaths);
+        // let directoryPaths = await this.walkTree(file.path.split('/'));
+        // paths.push(...directoryPaths);
+        directoryTasks.push(this.walkTree(file.path.split('/')));
       }
+    }
+    let directories = await Promise.all(directoryTasks);
+    for (let directoryFiles of directories) {
+      paths.push(...directoryFiles);
     }
     return paths;
   }
@@ -120,7 +130,7 @@ async function walkSourceTree(bb: BitBucket, repo: IRepositoryPath) {
     let commit: string = rootFiles[0].commit.hash;
     // We fetch the same files again but through another endpoint
     let treeWalker = new SourceTreeWalker(bb, repo, commit);
-    return await treeWalker.walkTree();
+    return await treeWalker.walkTree([]);
   }
   return null;
 }

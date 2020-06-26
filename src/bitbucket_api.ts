@@ -29,7 +29,13 @@ export default class BitBucketAPI implements IResourceWorker {
     let pageIndex = 0;
     let currentRequest = this.setAuthorization(sa.get(url));
     while (pageIndex < maxPages) {
-      let result = await currentRequest;
+      let result = null;
+      try {
+        result = await currentRequest;
+      } catch (error) {
+        terminal.red.error(`${error.status} ${error.response?.text}\n`);
+        return null;
+      }
       values.push(...result.body.values);
       let nextPage = result.body.next;
       if (nextPage) {
@@ -44,7 +50,7 @@ export default class BitBucketAPI implements IResourceWorker {
 
   async getResource(pathParts: string[]): Promise<any> {
     let completePath = pathParts.join('/');
-    let url = `${this.baseUrl}/${completePath}`;
+    let url = `${this.baseUrl}/${completePath}/`;
     this.verbose && terminal.green(`bb-api: fetching ${url}\n`);
     return await this.fetchValues(url, this.maxPages);
   }

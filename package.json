@@ -42,6 +42,11 @@
     "type": "git",
     "url": "git+https://github.com/Grevinnan/bbq"
   },
+  "prettier": {
+    "singleQuote": true,
+    "trailingComma": "es5",
+    "printWidth": 90
+  },
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/Grevinnan/bbq/issues"
