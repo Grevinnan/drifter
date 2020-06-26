@@ -135,6 +135,11 @@ async function walkSourceTree(bb: BitBucket, repo: IRepositoryPath) {
   return null;
 }
 
+function formatRepository(repo: any) : string {
+  const isPrivate = repo.is_private === true ? 'private' : 'public';
+  return `${repo.full_name} ${repo.language} ${repo.size} ${isPrivate}\n`;
+}
+
 yargs
   .scriptName('bbq')
   .version('v0.0.1')
@@ -204,11 +209,18 @@ yargs
           'show <repository>',
           'Show repository data',
           (yargs) => {
-            yargs.positional('repository', {
-              describe: 'Repository name/uuid',
-              type: 'string',
-              default: '',
-            });
+            yargs
+              .positional('repository', {
+                describe: 'Repository name/uuid',
+                type: 'string',
+                default: '',
+              })
+              .option('list-files', {
+                alias: 'f',
+                type: 'boolean',
+                description: 'List repository files',
+                default: false,
+              });
           },
           async (argv) => {
             let config = await getConfig();
@@ -221,11 +233,14 @@ yargs
               process.exit();
             }
             argv.verbose && terminal(`found ${repo.uuid} ${repo.full_name}\n`);
-            let srcFiles = await walkSourceTree(bb, {
-              workspace: repo.workspace.uuid,
-              repository: repo.uuid,
-            });
-            srcFiles.forEach((file) => terminal(`${file}\n`));
+            terminal(formatRepository(repo));
+            if (argv.listFiles) {
+              let srcFiles = await walkSourceTree(bb, {
+                workspace: repo.workspace.uuid,
+                repository: repo.uuid,
+              });
+              srcFiles.forEach((file) => terminal(`${file}\n`));
+            }
             process.exit();
           }
         );
@@ -242,7 +257,7 @@ yargs
         let workspaceIds = (await bb.getWorkspaces()).map((ws) => ws.uuid);
         for (let uuid of workspaceIds) {
           let repositories = await bb.getRepositories(uuid);
-          repositories.forEach((repo) => terminal(`${repo.full_name} ${repo.uuid}\n`));
+          repositories.forEach((repo) => terminal(formatRepository(repo)));
         }
       } else {
         yargs.showHelp();
