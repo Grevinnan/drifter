@@ -4,9 +4,11 @@
 
 import yargs from 'yargs';
 import Config from './config';
-import ResourceManager, { IManagerOptions } from './resource_manager';
+import ResourceManager, * as rm from './resource_manager';
 import Cache from './cache';
 import fsize from 'filesize';
+import { IAuth } from './config';
+import sa from 'superagent';
 
 import tkit from 'terminal-kit';
 const terminal = tkit.terminal;
@@ -35,30 +37,101 @@ interface IRepositoryPath {
   repository: string;
 }
 
+const BBCloudCacheFilter: rm.ResourceId[] = [
+  ['workspaces'],
+  ['repositories', '*'],
+  ['repositories', '*', '*', 'src', '**'],
+];
+
+class BitBucketCloud implements rm.IServer {
+  auth: IAuth;
+  url: string;
+  cachePaths: rm.ResourceId[];
+  constructor(auth: IAuth) {
+    this.auth = auth;
+    this.url = 'https://api.bitbucket.org/2.0';
+    this.cachePaths = BBCloudCacheFilter;
+  }
+  setAuthorization(request: sa.SuperAgentRequest): sa.SuperAgentRequest {
+    request
+      .set('Content-Type', 'application/json')
+      .set('Authorization', `Basic ${this.auth.password}`);
+    return request;
+  }
+}
+
+class JsonListHandler<U = any> implements rm.IDataHandler<U[]> {
+  list: U[];
+  pageIndex: number;
+  maxPages: number;
+  constructor(maxPages: number) {
+    this.list = [];
+    this.pageIndex = 0;
+    this.maxPages = maxPages;
+  }
+
+  add(result: any): sa.SuperAgentRequest {
+    let nextRequest: sa.SuperAgentRequest = null;
+    this.list.push(...result.body.values);
+    this.pageIndex += 1;
+    let nextPage = result.body.next;
+    if (nextPage && this.pageIndex < this.maxPages) {
+      nextRequest = sa.get(nextPage);
+    }
+    return nextRequest;
+  }
+
+  get(): U[] {
+    return this.list;
+  }
+
+  serialize(data: U[]): string {
+    return JSON.stringify(data);
+  }
+
+  deserialize(data: string): U[] {
+    // TODO: catch errors
+    return JSON.parse(data);
+  }
+
+  getCacheName() : string {
+    return 'data.json';
+  }
+}
+
 class BitBucket {
   config: Config;
-  baseUrl: string;
+  maxPages: number;
   manager: ResourceManager;
-  constructor(config: Config, options: IManagerOptions) {
+  constructor(config: Config, options: rm.IManagerOptions, maxPages: number) {
     this.config = config;
-    this.baseUrl = 'https://api.bitbucket.org/2.0';
-    this.manager = new ResourceManager(this.config, options);
+    this.maxPages = maxPages;
+    this.manager = new ResourceManager(options);
+    this.manager.registerServer('bb-cloud', new BitBucketCloud(config.auth));
+  }
+
+  async get(...id: string[]) {
+    let resource: rm.IResource = {
+      server: 'bb-cloud',
+      id: id,
+    };
+    return await this.manager.get(resource, new JsonListHandler(this.maxPages));
   }
 
   async getWorkspaces() {
-    return await this.manager.getResource('workspaces');
+    return await this.get('workspaces');
   }
 
   async getPublicRepositories() {
-    return await this.manager.getResource('repositories');
+    return await this.get('repositories');
   }
 
   async getRepositories(workspace: string) {
-    return await this.manager.getResource('repositories', workspace);
+    return await this.get('repositories', workspace);
   }
 
   async getRepositorySrc(repo: IRepositoryPath, ...filePath: string[]) {
-    return await this.manager.getResource(
+    return await this.get(
       'repositories',
       repo.workspace,
       repo.repository,
@@ -81,11 +154,10 @@ class BitBucket {
   }
 }
 
-function getOptions(argv): IManagerOptions {
-  const managerOptions: IManagerOptions = {
-    verbose: argv.verbose,
-    forceSynchronize: argv.forceSynchronize,
-    maxPages: argv.maxPages,
+function getOptions(argv): rm.IManagerOptions {
+  const managerOptions: rm.IManagerOptions = {
+    verbose: argv.v,
+    forceSynchronize: argv.s,
   };
   return managerOptions;
 }
@@ -147,20 +219,20 @@ yargs
   .version('v0.0.1')
   .strict(true)
   .demandCommand()
-  .option('verbose', {
-    alias: 'v',
+  .option('v', {
+    alias: 'verbose',
     type: 'boolean',
     description: 'Verbose output',
     default: false,
   })
-  .option('max-pages', {
-    alias: 'm',
+  .option('m', {
+    alias: ['max-pages'],
     type: 'number',
     description: 'The maximum number of pages to fetch',
-    default: 100,
+    default: 10,
   })
-  .option('force-synchronize', {
-    alias: 's',
+  .option('s', {
+    alias: 'force-synchronization',
     type: 'boolean',
     description: 'Will force synchronization with the server',
     default: false,
@@ -168,18 +240,17 @@ yargs
   .command(
     ['ws', 'workspace'],
     'Operations on workspaces',
-    (yargs) => {
-      yargs.option('list', {
-        alias: 'l',
+    (yargs) =>
+      yargs.option('l', {
+        alias: 'list',
         type: 'boolean',
         description: 'List available workspaces',
         default: false,
-      });
-    },
+      }),
     async (argv) => {
       let config = await getConfig();
-      let bb = new BitBucket(config, getOptions(argv));
-      if (argv.list) {
+      let bb = new BitBucket(config, getOptions(argv), argv.m);
+      if (argv.l) {
         let workspaces = await bb.getWorkspaces();
         workspaces.forEach((workspace) =>
           terminal(`${workspace.slug} ${workspace.uuid}\n`)
@@ -195,23 +266,22 @@ yargs
       .command(
         'show <repository>',
         'Show repository data',
-        (yargs) => {
+        (yargs) =>
           yargs
             .positional('repository', {
               describe: 'Repository name/uuid',
               type: 'string',
               default: '',
             })
-            .option('list-files', {
-              alias: 'f',
+            .option('f', {
+              alias: 'list-files',
               type: 'boolean',
               description: 'List repository files',
               default: false,
-            });
-        },
+            }),
         async (argv) => {
           let config = await getConfig();
-          let bb = new BitBucket(config, getOptions(argv));
+          let bb = new BitBucket(config, getOptions(argv), argv.m);
           // For some reason TS does not understand the type
           let repoId: string = String(argv.repository);
           let repo = await bb.findRepository(repoId);
@@ -220,13 +290,14 @@ yargs
             process.exit();
           }
           argv.verbose && terminal(`found ${repo.uuid} ${repo.full_name}\n`);
-          terminal(formatRepository(repo));
-          if (argv.listFiles) {
+          if (argv.f) {
             let srcFiles = await walkSourceTree(bb, {
               workspace: repo.workspace.uuid,
               repository: repo.uuid,
             });
             srcFiles.forEach((file) => terminal(`${file}\n`));
+          } else {
+            terminal(formatRepository(repo));
           }
           process.exit();
         }
@@ -234,17 +305,16 @@ yargs
       .command(
         ['list', '$0'],
         'List repositories',
-        (yargs) => {
-          yargs.option('public', {
-            alias: 'p',
+        (yargs) =>
+          yargs.option('p', {
+            alias: 'public',
             type: 'boolean',
             description: 'List public repositories',
             default: false,
-          });
-        },
+          }),
         async (argv) => {
           let config = await getConfig();
-          let bb = new BitBucket(config, getOptions(argv));
+          let bb = new BitBucket(config, getOptions(argv), argv.m);
           if (argv.public) {
             let values = await bb.getPublicRepositories();
             let names = values.map((ws) => ws.full_name);
@@ -263,14 +333,13 @@ yargs
   .command(
     ['cg', 'config'],
     'Handle your configuration',
-    (yargs) => {
-      yargs.option('clear', {
-        alias: 'c',
+    (yargs) =>
+      yargs.option('c', {
+        alias: 'clear',
         type: 'boolean',
         description: 'Clear your configuration',
         default: false,
-      });
-    },
+      }),
     async (argv) => {
       let config = await getConfig();
       if (argv.clear) {
@@ -284,16 +353,15 @@ yargs
   .command(
     ['cc', 'cache'],
     'Handle your cache',
-    (yargs) => {
-      yargs.option('clear', {
-        alias: 'c',
+    (yargs) =>
+      yargs.option('c', {
+        alias: 'clear',
         type: 'boolean',
         description: 'Clear your cache',
         default: false,
-      });
-    },
+      }),
     async (argv) => {
-      let cache = new Cache({}, argv.verbose);
+      let cache = new Cache({}, argv.v);
       if (argv.clear) {
         await cache.clear();
       } else {

@@ -3,14 +3,13 @@ import path from 'path';
 import tkit from 'terminal-kit';
 
 import { ICacheOptions } from './config';
-import IResourceWorker from './resource_worker_i';
 import getXdgDirectory from './xdg';
 import * as ds from './directory_size';
 import * as tu from './terminal_util';
 
 const terminal = tkit.terminal;
 
-export default class Cache implements IResourceWorker {
+export default class Cache {
   cacheDirectory: string;
   options: ICacheOptions;
   verbose: boolean;
@@ -40,14 +39,14 @@ export default class Cache implements IResourceWorker {
     }
   }
 
-  async getResource(pathParts: string[]): Promise<any> {
+  async getResource(pathParts: string[], filename: string): Promise<any> {
     let cachePath = this.getCachePath(pathParts);
     // console.log(cachePath);
     if (!fs.existsSync(cachePath)) {
       this.verbose && terminal(`cache: ${cachePath} does not exist\n`);
       return null;
     }
-    let dataPath = path.join(cachePath, 'data');
+    let dataPath = path.join(cachePath, filename);
     if (!fs.existsSync(dataPath)) {
       this.verbose && terminal(`cache: ${dataPath} does not exist\n`);
       return null;
@@ -57,7 +56,7 @@ export default class Cache implements IResourceWorker {
 
     let data = null;
     try {
-      data = JSON.parse(fs.readFileSync(dataPath, 'utf-8'));
+      data = fs.readFileSync(dataPath, 'utf-8');
     } catch (error) {
       terminal.error(`cache: could not parse ${dataPath} : ${error}\n`);
       return null;
@@ -65,14 +64,14 @@ export default class Cache implements IResourceWorker {
     return data;
   }
 
-  async saveResource(pathParts: string[], data: string): Promise<boolean> {
+  async saveResource(pathParts: string[], data: string, filename: string): Promise<boolean> {
     let cachePath = this.getCachePath(pathParts);
     if (!fs.existsSync(cachePath)) {
       fs.mkdirSync(cachePath, { recursive: true });
       this.verbose && terminal(`cache: ${cachePath} created\n`);
     }
 
-    let dataPath = path.join(cachePath, 'data');
+    let dataPath = path.join(cachePath, filename);
     this.verbose && terminal(`cache: saving data to ${dataPath}\n`);
 
     // TODO: "smart" sync, not only raw overwriting (at least for JSON)
