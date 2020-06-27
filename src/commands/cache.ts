@@ -1,5 +1,5 @@
 import fsize from 'filesize';
-import Cache from '@app/cache';
+import Cache from '../cache';
 
 import tkit from 'terminal-kit';
 const terminal = tkit.terminal;

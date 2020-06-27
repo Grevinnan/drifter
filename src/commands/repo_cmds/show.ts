@@ -1,6 +1,6 @@
 import yargs from 'yargs';
-import getBitBucket, * as bbc from '@app/bb_cloud';
-import * as ft from '@app/format';
+import getBitBucket, * as bbc from '../../bb_cloud';
+import * as ft from '../../format';
 
 import tkit from 'terminal-kit';
 const terminal = tkit.terminal;

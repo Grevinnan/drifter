@@ -1,5 +1,5 @@
 import yargs from 'yargs';
-import getBitBucket from '@app/bb_cloud';
+import getBitBucket from '../bb_cloud';
 
 import tkit from 'terminal-kit';
 const terminal = tkit.terminal;

@@ -1,5 +1,5 @@
 import yargs from 'yargs';
-import * as bbc from '@app/bb_cloud';
+import * as bbc from '../bb_cloud';
 
 exports.command = 'cg';
 exports.aliases = ['config'];

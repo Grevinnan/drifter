@@ -23,8 +23,7 @@
     "@types/terminal-kit": "^1.28.2",
     "@types/uuid": "^8.0.0",
     "@types/xdg-basedir": "^4.0.2",
-    "@types/yargs": "^15.0.5",
-    "tsconfig-paths": "^3.9.0"
+    "@types/yargs": "^15.0.5"
   },
   "keywords": [
     "bitbucket",
@@ -38,6 +37,9 @@
   "scripts": {
     "start": "nodemon --watch 'src/**/*.ts' --exec 'ts-node' src/bbq.ts",
     "build": "tsc"
+  },
+  "_moduleAliases": {
+    "@app": "./src"
   },
   "version": "0.0.1",
   "main": "bbq",

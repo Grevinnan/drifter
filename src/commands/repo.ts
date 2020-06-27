@@ -1,5 +1,5 @@
 import yargs from 'yargs';
-import commandDirOptions from '@app/command_dir';
+import commandDirOptions from '../command_dir';
 
 exports.command = 'rp';
 exports.aliases = ['repository'];
