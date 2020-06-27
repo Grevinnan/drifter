@@ -23,7 +23,8 @@
     "@types/terminal-kit": "^1.28.2",
     "@types/uuid": "^8.0.0",
     "@types/xdg-basedir": "^4.0.2",
-    "@types/yargs": "^15.0.5"
+    "@types/yargs": "^15.0.5",
+    "tsconfig-paths": "^3.9.0"
   },
   "keywords": [
     "bitbucket",
