@@ -5,6 +5,8 @@
 import yargs from 'yargs';
 import Config from './config';
 import ResourceManager, { IManagerOptions } from './resource_manager';
+import Cache from './cache';
+import fsize from 'filesize';
 
 import tkit from 'terminal-kit';
 const terminal = tkit.terminal;
@@ -155,7 +157,7 @@ yargs
     alias: 'm',
     type: 'number',
     description: 'The maximum number of pages to fetch',
-    default: -1,
+    default: 100,
   })
   .option('force-synchronize', {
     alias: 's',
@@ -275,6 +277,28 @@ yargs
         await config.clearConfig();
       } else {
         yargs.showHelp();
+      }
+      process.exit();
+    }
+  )
+  .command(
+    ['cc', 'cache'],
+    'Handle your cache',
+    (yargs) => {
+      yargs.option('clear', {
+        alias: 'c',
+        type: 'boolean',
+        description: 'Clear your cache',
+        default: false,
+      });
+    },
+    async (argv) => {
+      let cache = new Cache({}, argv.verbose);
+      if (argv.clear) {
+        await cache.clear();
+      } else {
+        terminal(`Directory: ${cache.cacheDirectory}\n`);
+        terminal(`Size: ${fsize(cache.getCacheSize())}\n`);
       }
       process.exit();
     }

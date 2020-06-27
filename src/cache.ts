@@ -5,6 +5,8 @@ import tkit from 'terminal-kit';
 import { ICacheOptions } from './config';
 import IResourceWorker from './resource_worker_i';
 import getXdgDirectory from './xdg';
+import * as ds from './directory_size';
+import * as tu from './terminal_util';
 
 const terminal = tkit.terminal;
 
@@ -23,6 +25,19 @@ export default class Cache implements IResourceWorker {
     pathParts.slice(0, -1).forEach((p) => paths.push(p, 'a'));
     paths.push(pathParts[pathParts.length - 1]);
     return path.join(this.cacheDirectory, ...paths);
+  }
+
+  getCacheSize() : number {
+      return ds.getTotalSize(this.cacheDirectory);
+  }
+
+  async clear() {
+    terminal(`Are you sure you want to clear the cache ${this.cacheDirectory}?\n`);
+    let clearCache = await terminal.yesOrNo(tu.yesOrNoKeyMaps).promise;
+    if (clearCache) {
+      await fs.promises.rmdir(this.cacheDirectory, {recursive: true});
+      terminal(`deleted ${this.cacheDirectory}\n`);
+    }
   }
 
   async getResource(pathParts: string[]): Promise<any> {

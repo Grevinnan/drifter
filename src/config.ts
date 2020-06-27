@@ -2,10 +2,9 @@ import fs from 'fs';
 import path from 'path';
 import tkit from 'terminal-kit';
 import getXdgDirectory from './xdg';
+import * as tu from './terminal_util';
 
 const terminal = tkit.terminal;
-
-const yesOrNoKeyMaps = { yes: ['y'], no: ['n', 'q'] };
 
 export interface IAuth {
   username: string;
@@ -49,7 +48,7 @@ export default class Config {
       terminal(
         'Configuration could not be loaded, do you wish to run configuration? [y/n]\n'
       );
-      let proceed = await terminal.yesOrNo(yesOrNoKeyMaps).promise;
+      let proceed = await terminal.yesOrNo(tu.yesOrNoKeyMaps).promise;
       if (!proceed) {
         return false;
       }
@@ -80,7 +79,7 @@ export default class Config {
       console.log('There is no stored data. Skipping.');
     } else {
       terminal('Are you sure?\n');
-      let clearConfig = await terminal.yesOrNo(yesOrNoKeyMaps).promise;
+      let clearConfig = await terminal.yesOrNo(tu.yesOrNoKeyMaps).promise;
       if (clearConfig) {
         fs.unlinkSync(this.configPath);
         terminal('Configuration deleted successfully!\n');
