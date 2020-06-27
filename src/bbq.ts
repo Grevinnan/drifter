@@ -94,7 +94,7 @@ class JsonListHandler<U = any> implements rm.IDataHandler<U[]> {
     return JSON.parse(data);
   }
 
-  getCacheName() : string {
+  getCacheName(): string {
     return 'data.json';
   }
 }
@@ -214,7 +214,7 @@ function formatRepository(repo: any): string {
   return `${repo.full_name} ${repo.language} ${repo.size} ${isPrivate}\n`;
 }
 
-yargs
+const base = yargs
   .scriptName('bbq')
   .version('v0.0.1')
   .strict(true)
@@ -236,138 +236,138 @@ yargs
     type: 'boolean',
     description: 'Will force synchronization with the server',
     default: false,
-  })
-  .command(
-    ['ws', 'workspace'],
-    'Operations on workspaces',
+  });
+base.command(
+  ['ws', 'workspace'],
+  'Operations on workspaces',
+  (yargs) =>
+    yargs.option('l', {
+      alias: 'list',
+      type: 'boolean',
+      description: 'List available workspaces',
+      default: false,
+    }),
+  async (argv) => {
+    let config = await getConfig();
+    let bb = new BitBucket(config, getOptions(argv), argv.m);
+    if (argv.l) {
+      let workspaces = await bb.getWorkspaces();
+      workspaces.forEach((workspace) =>
+        terminal(`${workspace.slug} ${workspace.uuid}\n`)
+      );
+    } else {
+      yargs.showHelp();
+    }
+    process.exit();
+  }
+);
+base.command(['rp', 'repository'], 'Operations on repositories', (yargs) => {
+  yargs.command(
+    'show <repository>',
+    'Show repository data',
     (yargs) =>
-      yargs.option('l', {
-        alias: 'list',
+      yargs
+        .positional('repository', {
+          describe: 'Repository name/uuid',
+          type: 'string',
+          default: '',
+        })
+        .option('f', {
+          alias: 'list-files',
+          type: 'boolean',
+          description: 'List repository files',
+          default: false,
+        }),
+    async (argv) => {
+      let config = await getConfig();
+      let bb = new BitBucket(config, getOptions(argv), argv.m);
+      // For some reason TS does not understand the type
+      let repoId: string = String(argv.repository);
+      let repo = await bb.findRepository(repoId);
+      if (!repo) {
+        terminal.error(`Could not find repository ${argv.repository}\n`);
+        process.exit();
+      }
+      argv.verbose && terminal(`found ${repo.uuid} ${repo.full_name}\n`);
+      if (argv.f) {
+        let srcFiles = await walkSourceTree(bb, {
+          workspace: repo.workspace.uuid,
+          repository: repo.uuid,
+        });
+        srcFiles.forEach((file) => terminal(`${file}\n`));
+      } else {
+        terminal(formatRepository(repo));
+      }
+      process.exit();
+    }
+  );
+  yargs.command(
+    ['list', '$0'],
+    'List repositories',
+    (yargs) =>
+      yargs.option('p', {
+        alias: 'public',
         type: 'boolean',
-        description: 'List available workspaces',
+        description: 'List public repositories',
         default: false,
       }),
     async (argv) => {
       let config = await getConfig();
       let bb = new BitBucket(config, getOptions(argv), argv.m);
-      if (argv.l) {
-        let workspaces = await bb.getWorkspaces();
-        workspaces.forEach((workspace) =>
-          terminal(`${workspace.slug} ${workspace.uuid}\n`)
-        );
+      if (argv.public) {
+        let values = await bb.getPublicRepositories();
+        let names = values.map((ws) => ws.full_name);
+        names.forEach((name) => terminal(`${name}\n`));
       } else {
-        yargs.showHelp();
-      }
-      process.exit();
-    }
-  )
-  .command(['rp', 'repository'], 'Operations on repositories', (yargs) => {
-    yargs
-      .command(
-        'show <repository>',
-        'Show repository data',
-        (yargs) =>
-          yargs
-            .positional('repository', {
-              describe: 'Repository name/uuid',
-              type: 'string',
-              default: '',
-            })
-            .option('f', {
-              alias: 'list-files',
-              type: 'boolean',
-              description: 'List repository files',
-              default: false,
-            }),
-        async (argv) => {
-          let config = await getConfig();
-          let bb = new BitBucket(config, getOptions(argv), argv.m);
-          // For some reason TS does not understand the type
-          let repoId: string = String(argv.repository);
-          let repo = await bb.findRepository(repoId);
-          if (!repo) {
-            terminal.error(`Could not find repository ${argv.repository}\n`);
-            process.exit();
-          }
-          argv.verbose && terminal(`found ${repo.uuid} ${repo.full_name}\n`);
-          if (argv.f) {
-            let srcFiles = await walkSourceTree(bb, {
-              workspace: repo.workspace.uuid,
-              repository: repo.uuid,
-            });
-            srcFiles.forEach((file) => terminal(`${file}\n`));
-          } else {
-            terminal(formatRepository(repo));
-          }
-          process.exit();
+        let workspaceIds = (await bb.getWorkspaces()).map((ws) => ws.uuid);
+        for (let uuid of workspaceIds) {
+          let repositories = await bb.getRepositories(uuid);
+          repositories.forEach((repo) => terminal(formatRepository(repo)));
         }
-      )
-      .command(
-        ['list', '$0'],
-        'List repositories',
-        (yargs) =>
-          yargs.option('p', {
-            alias: 'public',
-            type: 'boolean',
-            description: 'List public repositories',
-            default: false,
-          }),
-        async (argv) => {
-          let config = await getConfig();
-          let bb = new BitBucket(config, getOptions(argv), argv.m);
-          if (argv.public) {
-            let values = await bb.getPublicRepositories();
-            let names = values.map((ws) => ws.full_name);
-            names.forEach((name) => terminal(`${name}\n`));
-          } else {
-            let workspaceIds = (await bb.getWorkspaces()).map((ws) => ws.uuid);
-            for (let uuid of workspaceIds) {
-              let repositories = await bb.getRepositories(uuid);
-              repositories.forEach((repo) => terminal(formatRepository(repo)));
-            }
-          }
-          process.exit();
-        }
-      );
-  })
-  .command(
-    ['cg', 'config'],
-    'Handle your configuration',
-    (yargs) =>
-      yargs.option('c', {
-        alias: 'clear',
-        type: 'boolean',
-        description: 'Clear your configuration',
-        default: false,
-      }),
-    async (argv) => {
-      let config = await getConfig();
-      if (argv.clear) {
-        await config.clearConfig();
-      } else {
-        yargs.showHelp();
       }
       process.exit();
     }
-  )
-  .command(
-    ['cc', 'cache'],
-    'Handle your cache',
-    (yargs) =>
-      yargs.option('c', {
-        alias: 'clear',
-        type: 'boolean',
-        description: 'Clear your cache',
-        default: false,
-      }),
-    async (argv) => {
-      let cache = new Cache({}, argv.v);
-      if (argv.clear) {
-        await cache.clear();
-      } else {
-        terminal(`Directory: ${cache.cacheDirectory}\n`);
-        terminal(`Size: ${fsize(cache.getCacheSize())}\n`);
-      }
-      process.exit();
+  );
+});
+base.command(
+  ['cg', 'config'],
+  'Handle your configuration',
+  (yargs) =>
+    yargs.option('c', {
+      alias: 'clear',
+      type: 'boolean',
+      description: 'Clear your configuration',
+      default: false,
+    }),
+  async (argv) => {
+    let config = await getConfig();
+    if (argv.clear) {
+      await config.clearConfig();
+    } else {
+      yargs.showHelp();
     }
-  ).argv;
+    process.exit();
+  }
+);
+base.command(
+  ['cc', 'cache'],
+  'Handle your cache',
+  (yargs) =>
+    yargs.option('c', {
+      alias: 'clear',
+      type: 'boolean',
+      description: 'Clear your cache',
+      default: false,
+    }),
+  async (argv) => {
+    let cache = new Cache({}, argv.v);
+    if (argv.clear) {
+      await cache.clear();
+    } else {
+      terminal(`Directory: ${cache.cacheDirectory}\n`);
+      terminal(`Size: ${fsize(cache.getCacheSize())}\n`);
+    }
+    process.exit();
+  }
+);
+yargs.argv;
