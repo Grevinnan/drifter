@@ -12,7 +12,9 @@ export interface IRepositoryPath {
 }
 
 const BBCloudCacheFilter: rm.ResourceId[] = [
+  ['user'],
   ['workspaces'],
+  ['workspaces', '*', 'members'],
   ['repositories', '*'],
   ['repositories', '*', '*', 'src', '**'],
 ];
@@ -34,6 +36,7 @@ class BitBucketCloud implements rm.IServer {
   }
 }
 
+// TODO: base class
 class JsonListHandler<U = any> implements rm.IDataHandler<U[]> {
   list: U[];
   pageIndex: number;
@@ -73,6 +76,35 @@ class JsonListHandler<U = any> implements rm.IDataHandler<U[]> {
   }
 }
 
+class JsonHandler<U = any> implements rm.IDataHandler<U> {
+  json: U;
+  constructor() {
+    this.json = null;
+  }
+
+  add(result: any): sa.SuperAgentRequest {
+    this.json = result.body;
+    return null;
+  }
+
+  get(): U {
+    return this.json;
+  }
+
+  serialize(data: U): string {
+    return JSON.stringify(data);
+  }
+
+  deserialize(data: string): U {
+    // TODO: catch errors
+    return JSON.parse(data);
+  }
+
+  getCacheName(): string {
+    return 'data.json';
+  }
+}
+
 export class BitBucket {
   config: Config;
   maxPages: number;
@@ -84,28 +116,49 @@ export class BitBucket {
     this.manager.registerServer('bb-cloud', new BitBucketCloud(config.auth));
   }
 
-  async get(...id: string[]) {
+  jsonList() {
+    return new JsonListHandler(this.maxPages);
+  }
+
+  json() {
+    return new JsonHandler();
+  }
+
+  async get<T>(handler: rm.IDataHandler<T>, ...id: string[]) {
     let resource: rm.IResource = {
       server: 'bb-cloud',
       id: id,
     };
-    return await this.manager.get(resource, new JsonListHandler(this.maxPages));
+    return await this.manager.get(resource, handler);
+  }
+
+  async getUser() {
+    return await this.get(this.json(), 'user');
+  }
+
+  async getPullrequests(user: string) {
+    return await this.get(this.jsonList(), 'pullrequests', user);
   }
 
   async getWorkspaces() {
-    return await this.get('workspaces');
+    return await this.get(this.jsonList(), 'workspaces');
+  }
+
+  async getMembers(workspace: string) {
+    return await this.get(this.jsonList(), 'workspaces' , workspace, 'members');
   }
 
   async getPublicRepositories() {
-    return await this.get('repositories');
+    return await this.get(this.jsonList(), 'repositories');
   }
 
   async getRepositories(workspace: string) {
-    return await this.get('repositories', workspace);
+    return await this.get(this.jsonList(), 'repositories', workspace);
   }
 
   async getRepositorySrc(repo: IRepositoryPath, ...filePath: string[]) {
     return await this.get(
+      this.jsonList(),
       'repositories',
       repo.workspace,
       repo.repository,
@@ -122,6 +175,16 @@ export class BitBucket {
         if (repo.full_name === repository || repo.uuid === repository) {
           return repo;
         }
+      }
+    }
+    return null;
+  }
+
+  async findWorkspace(workspaceId: string): Promise<any> {
+    let workspaces = await this.getWorkspaces();
+    for (let ws of workspaces) {
+      if (ws.slug === workspaceId || ws.uuid === workspaceId) {
+        return ws;
       }
     }
     return null;
@@ -148,7 +211,7 @@ function getOptions(argv): rm.IManagerOptions {
   return managerOptions;
 }
 
-export default async function getBitBucket(argv) : Promise<BitBucket> {
+export default async function getBitBucket(argv): Promise<BitBucket> {
   let config = await getConfig();
   return new BitBucket(config, getOptions(argv), argv.m);
 }

@@ -76,7 +76,7 @@ exports.handler = async (argv: any) => {
   let repoId: string = String(argv.repository);
   let repo = await bb.findRepository(repoId);
   if (!repo) {
-    terminal.error(`Could not find repository ${argv.repository}\n`);
+    terminal.error.red(`Could not find repository ${argv.repository}\n`);
     process.exit();
   }
   argv.verbose && terminal(`found ${repo.uuid} ${repo.full_name}\n`);
