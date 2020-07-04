@@ -11,6 +11,8 @@ const terminal = tkit.terminal;
 terminal.on('key', (key: string) => {
   if (key === 'CTRL_C' || key === 'CTRL_D') {
     terminal.grabInput(false);
+    terminal.fullscreen(false);
+    terminal.applicationKeypad(false);
     process.exit();
   }
 });
@@ -26,12 +28,6 @@ const base = yargs
     type: 'boolean',
     description: 'Verbose output',
     default: false,
-  })
-  .option('m', {
-    alias: ['max-pages'],
-    type: 'number',
-    description: 'The maximum number of pages to fetch',
-    default: 10,
   })
   .option('s', {
     alias: 'force-synchronization',

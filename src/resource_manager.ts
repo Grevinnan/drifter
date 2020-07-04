@@ -78,7 +78,7 @@ export default class ResourceManager {
 
   async fetch<T>(resource: IResource, server: IServer, handler: IDataHandler<T>) {
     const completePath = resource.id.join('/');
-    const url = `${server.url}/${completePath}/`;
+    const url = `${server.url}${completePath}/`;
     const serverId = resource.server;
     let request = sa.get(url);
     while (request) {

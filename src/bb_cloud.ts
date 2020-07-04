@@ -25,7 +25,7 @@ class BitBucketCloud implements rm.IServer {
   cachePaths: rm.ResourceId[];
   constructor(auth: IAuth) {
     this.auth = auth;
-    this.url = 'https://api.bitbucket.org/2.0';
+    this.url = 'https://api.bitbucket.org/2.0/';
     this.cachePaths = BBCloudCacheFilter;
   }
   setAuthorization(request: sa.SuperAgentRequest): sa.SuperAgentRequest {
@@ -39,20 +39,15 @@ class BitBucketCloud implements rm.IServer {
 // TODO: base class
 class JsonListHandler<U = any> implements rm.IDataHandler<U[]> {
   list: U[];
-  pageIndex: number;
-  maxPages: number;
-  constructor(maxPages: number) {
+  constructor() {
     this.list = [];
-    this.pageIndex = 0;
-    this.maxPages = maxPages;
   }
 
   add(result: any): sa.SuperAgentRequest {
     let nextRequest: sa.SuperAgentRequest = null;
     this.list.push(...result.body.values);
-    this.pageIndex += 1;
     let nextPage = result.body.next;
-    if (nextPage && this.pageIndex < this.maxPages) {
+    if (nextPage) {
       nextRequest = sa.get(nextPage);
     }
     return nextRequest;
@@ -105,23 +100,82 @@ class JsonHandler<U = any> implements rm.IDataHandler<U> {
   }
 }
 
+class StringHandler implements rm.IDataHandler<string> {
+  data: string;
+  constructor() {
+    this.data = null;
+  }
+
+  add(result: any): sa.SuperAgentRequest {
+    this.data = result.text;
+    return null;
+  }
+
+  get(): string {
+    return this.data;
+  }
+
+  serialize(data: string): string {
+    return data;
+  }
+
+  deserialize(data: string): string {
+    return data;
+  }
+
+  getCacheName(): string {
+    // TODO: Maybe use file extension for files?
+    return 'data';
+  }
+}
+
+// TODO: cache results in class(RM?)
 export class BitBucket {
   config: Config;
-  maxPages: number;
   manager: ResourceManager;
-  constructor(config: Config, options: rm.IManagerOptions, maxPages: number) {
+  bbCloud: rm.IServer;
+  constructor(config: Config, options: rm.IManagerOptions) {
     this.config = config;
-    this.maxPages = maxPages;
     this.manager = new ResourceManager(options);
-    this.manager.registerServer('bb-cloud', new BitBucketCloud(config.auth));
+    this.bbCloud = new BitBucketCloud(config.auth);
+    this.manager.registerServer('bb-cloud', this.bbCloud);
   }
 
   jsonList() {
-    return new JsonListHandler(this.maxPages);
+    return new JsonListHandler();
   }
 
   json() {
     return new JsonHandler();
+  }
+
+  string() {
+    return new StringHandler();
+  }
+
+  async getFromUrl<T>(url: string, handler: rm.IDataHandler<T>) {
+    let resourceUrl: string = url;
+    if (url.indexOf(this.bbCloud.url) === 0) {
+      resourceUrl = url.slice(this.bbCloud.url.length);
+    }
+    let resourceParts = resourceUrl.split('/');
+    if (resourceParts[0] === 'repositories' && resourceParts.length >= 3) {
+      let wsId = resourceParts[1];
+      let ws = await this.findWorkspace(wsId);
+      if (!ws) {
+        return null;
+      }
+      let repoId = resourceParts[2];
+      let repo = await this.findRepositoryInWorkspace(repoId, ws);
+      if (!repo) {
+        return null;
+      }
+      resourceParts[1] = ws.uuid;
+      resourceParts[2] = repo.uuid;
+      // console.log(repo);
+    }
+    // console.log(resourceParts);
+    return await this.get(handler, ...resourceParts);
   }
 
   async get<T>(handler: rm.IDataHandler<T>, ...id: string[]) {
@@ -145,7 +199,7 @@ export class BitBucket {
   }
 
   async getMembers(workspace: string) {
-    return await this.get(this.jsonList(), 'workspaces' , workspace, 'members');
+    return await this.get(this.jsonList(), 'workspaces', workspace, 'members');
   }
 
   async getPublicRepositories() {
@@ -165,6 +219,20 @@ export class BitBucket {
       'src',
       ...filePath
     );
+  }
+
+  async findRepositoryInWorkspace(repository: string, workspace: any): Promise<any> {
+    let repositories = await this.getRepositories(workspace.uuid);
+    for (let repo of repositories) {
+      if (
+        repo.full_name === repository ||
+        repo.name === repository ||
+        repo.uuid === repository
+      ) {
+        return repo;
+      }
+    }
+    return null;
   }
 
   async findRepository(repository: string): Promise<any> {
@@ -213,5 +281,5 @@ function getOptions(argv): rm.IManagerOptions {
 
 export default async function getBitBucket(argv): Promise<BitBucket> {
   let config = await getConfig();
-  return new BitBucket(config, getOptions(argv), argv.m);
+  return new BitBucket(config, getOptions(argv));
 }

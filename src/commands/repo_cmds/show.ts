@@ -35,16 +35,13 @@ class SourceTreeWalker {
 
   async walkTree(pathParts: string[] = []) {
     let paths = [];
-    let sourceFiles = await this.bb.getRepositorySrc(
-      this.repo,
-      this.commit,
-      ...pathParts
-    );
+    let sourceFiles =
+        await this.bb.getRepositorySrc(this.repo, this.commit, ...pathParts);
     // TODO: consider escaped_path?
     let directoryTasks = [];
     for (let file of sourceFiles) {
       if (file.type === 'commit_file') {
-        paths.push(file.path);
+        paths.push(file);
       } else {
         // let directoryPaths = await this.walkTree(file.path.split('/'));
         // paths.push(...directoryPaths);
