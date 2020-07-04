@@ -33,10 +33,12 @@ export default class ResourceManager {
   options: IManagerOptions;
   servers: Map<string, IServer>;
   cache: Cache;
+  resources: Map<string, any>;
   constructor(options: IManagerOptions) {
     this.options = options;
     this.servers = new Map();
     this.cache = new Cache({}, this.options.verbose);
+    this.resources = new Map();
   }
 
   registerServer(name: string, data: IServer) {
@@ -97,7 +99,12 @@ export default class ResourceManager {
   }
 
   async get<T>(resource: IResource, handler: IDataHandler<T>): Promise<T> {
-    let result: T = null;
+    const resourceStr = resource.id.join('/');
+    let result: T = this.resources.get(resourceStr);
+    if (result) {
+      this.options.verbose && terminal.green(`rm: ${resourceStr} found\n`);
+      return result;
+    }
     let server = this.servers.get(resource.server);
     const filename = handler.getCacheName();
     if (!server) {
@@ -106,7 +113,7 @@ export default class ResourceManager {
     }
     // Try to get the resource from the cache if applicable
     if (!this.options.forceSynchronize && this.isFiltered(resource.id, server)) {
-      this.options.verbose && terminal.yellow(`rm: filtered ${resource.id.join('/')}\n`);
+      this.options.verbose && terminal.yellow(`rm: filtered ${resourceStr}\n`);
       result = handler.deserialize(await this.cache.getResource(resource.id, filename));
     }
     // Otherwise just try to get it from the server
@@ -118,6 +125,7 @@ export default class ResourceManager {
       }
       this.cache.saveResource(resource.id, handler.serialize(result), filename);
     }
+    this.resources.set(resourceStr, result);
     return result;
   }
 }
