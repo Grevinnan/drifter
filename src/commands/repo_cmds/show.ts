@@ -99,6 +99,8 @@ exports.handler = async (argv: any) => {
       workspace: repo.workspace.uuid,
       repository: repo.uuid,
     });
+    // terminal("^ggrön^ ^rröd^\n");
+    // process.exit();
     // console.log(srcFiles[0]);
     // console.log(srcFiles[0].links.self.href);
     // console.log(srcFiles[0].commit.links);
@@ -126,7 +128,7 @@ exports.handler = async (argv: any) => {
         rows: [
           {
             id: 'main_row',
-            heightPercent: 100,
+            heightPercent: 99,
             columns: [
               { id: 'files', widthPercent: 30 },
               { id: 'content'},
@@ -152,21 +154,34 @@ exports.handler = async (argv: any) => {
       items: items,
       height: srcFiles.length,
     });
-    const longText = 'CONTENT MANNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN???\nabcd\nrofl';
     // @ts-ignore
-    let textBox = new tkit.TextBox({
-    // let textBox = new tkit.Text({
-      parent: document.elements.content,
-      content: longText.split('\n'),
-      scrollable: true,
-      // x: 0,
-      // y: 0,
+    let debugBox = new tkit.TextBox({
+      parent: document,
+      content: 'DEBUG_BOX',
+      attr: {bgColor: terminal.bgDefaultColor()},
+      x: 0,
+      y: 0,
       width: 80,
-      height: terminal.height,
+      // height: terminal.height,
+      wrap: true,
       wordWrap: true,
       lineWrap: true,
-      vScrollbar: true,
+      // vScrollbar: true,
     });
+    // @ts-ignore
+    let textBox = new tkit.Text({
+      parent: document.elements.content,
+      content: '',
+      attr: {bgColor: terminal.bgDefaultColor()},
+    });
+    // debugBox.setContent(`${textBox.inputDst.dst.width}`);
+    debugBox.setContent(`${textBox.inputDst.width}`);
+    // console.log(textBox);
+    // process.exit();
+    let lines = null;
+    let index = 0;
+    let contentWidth = textBox.inputDst.width;
+    let contentHeight = textBox.inputDst.height;
 
     async function onSubmit(file , action ) {
       // console.log(action);
@@ -177,21 +192,64 @@ exports.handler = async (argv: any) => {
       let formattedContent = content;
       // console.log(formattedContent);
       // textBox.setContent(formattedContent.split('\n'), true);
-      textBox.height = content.split('\n').length;
-      textBox.setContent(formattedContent);
-      textBox.redraw();
-
-      // terminal(highlight(content, {language: extension}));
-      terminal.saveCursor() ;
-      terminal.restoreCursor() ;
+      // textBox.height = content.split('\n').length;
+      let rawLines = formattedContent.split('\n');
+      lines = [];
+      let lineWidth = contentWidth;
+      debugBox.setContent(`${lineWidth}`);
+      for(let line of rawLines) {
+        if (line.length > lineWidth) {
+          debugBox.setContent(`${lineWidth} ${line.length}`);
+          let shortened = line.slice(0, lineWidth);
+          lines.push(shortened);
+          let overflow = line.slice(lineWidth);
+          while (overflow > lineWidth) {
+            let extraLine = overflow.slice(0, lineWidth);
+            lines.push(extraLine);
+            overflow = overflow.slice(lineWidth);
+          }
+          debugBox.setContent(overflow);
+          if (overflow.length > 0) {
+            lines.push(overflow);
+          }
+        } else {
+          lines.push(line);
+        }
+      }
+      index = 0;
+      debugBox.setContent(contentHeight);
+      textBox.setContent(lines.slice(0, contentHeight), true);
     }
     menu.on( 'submit' , onSubmit ) ;
+    menu.on('key' , function (key) {
+      if (!lines) {
+        return;
+      }
+      if (key === 'j') {
+        index += 1;
+        if (index >= lines.length) {
+          index = lines.length - 1;
+        }
+        let currentLines = lines.slice(index, index + contentHeight);
+        textBox.setContent(currentLines, true);
+      } else if (key === 'k') {
+        index -= 1;
+        index = index < 0 ? 0 : index;
+        let currentLines = lines.slice(index, index + contentHeight);
+        textBox.setContent(currentLines, true);
+      }
+      // textBox.setContent([key]);
+    });
     terminal.on( 'resize' , ( width , height ) => {
       // console.log('aaaassssssssssssssssssss');
-      textBox.height = height;
+      // textBox.height = height;
       // console.log(textBox.height);
-      textBox.draw();
-    } ) ;
+      // textBox.draw();
+      contentWidth = textBox.inputDst.width;
+      contentHeight = textBox.inputDst.height;
+      let currentLines = lines.slice(index, index + contentHeight);
+      textBox.setContent(currentLines, true);
+    }) ;
 
     terminal.hideCursor();
     if (srcFiles.length > 0) {
