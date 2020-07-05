@@ -9,7 +9,7 @@ import tkit from 'terminal-kit';
 const terminal = tkit.terminal;
 
 terminal.on('key', (key: string) => {
-  if (key === 'CTRL_C' || key === 'CTRL_D') {
+  if (key === 'CTRL_C' || key === 'CTRL_D' || key === 'q') {
     terminal.grabInput(false);
     terminal.fullscreen(false);
     terminal.applicationKeypad(false);

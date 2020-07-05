@@ -70,6 +70,18 @@ let theme: hl.Theme = {
   default: hl.plain,
 }
 
+function escapeCaret(content: string) {
+  let escapedChars = [];
+  for (let c of content) {
+    if (c === '^') {
+      escapedChars.push('^^');
+    } else {
+      escapedChars.push(c);
+    }
+  }
+  return escapedChars.join('');
+}
+
 class SourceTreeWalker {
   bb: bbc.BitBucket;
   repo: bbc.IRepositoryPath;
@@ -182,7 +194,7 @@ exports.handler = async (argv: any) => {
       // boxChars: 'double',
       layout: {
         id: 'main',
-        y: 1,
+        y: 2,
         widthPercent: 100,
         heightPercent: 100,
         rows: [{
@@ -217,16 +229,19 @@ exports.handler = async (argv: any) => {
     // @ts-ignore
     let debugBox = new tkit.TextBox({
       parent: document,
-      content: 'DEBUG_BOX',
+      // content: 'DEBUG_BOX',
+      content: highlight('let jaha = 1;\nconst rofl = "pollo";', {language: 'js'}),
+      contentHasMarkup: 'ansi' ,
+      // disabled: true,
       attr: {bgColor: terminal.bgDefaultColor()},
       x: 0,
       y: 0,
       width: 80,
+      height: 2,
       // height: terminal.height,
       wrap: true,
       wordWrap: true,
       lineWrap: true,
-      // vScrollbar: true,
     });
     // @ts-ignore
     let textBox = new tkit.Text({
@@ -235,7 +250,7 @@ exports.handler = async (argv: any) => {
       attr: {bgColor: terminal.bgDefaultColor()},
     });
     // debugBox.setContent(`${textBox.inputDst.dst.width}`);
-    debugBox.setContent(`${textBox.inputDst.width}`);
+    // debugBox.setContent(`${textBox.inputDst.width}`);
     // console.log(textBox);
     // process.exit();
     let lines = null;
@@ -248,8 +263,14 @@ exports.handler = async (argv: any) => {
       let content = await bb.getFromUrl(file.links.self.href, bb.string());
       // console.log(srcFiles[i]);
       let extension = path.extname(file.path).slice(1);
+      // let start = process.hrtime();
+      content = escapeCaret(content);
+      // let diff = process.hrtime(start);
+      // debugBox.setContent(`${diff}`);
       let formattedContent =
           highlight(content, {language: extension, theme: theme});
+      // let formattedContent =
+      //     highlight(content, {language: extension});
       // let formattedContent = content;
       // console.log(formattedContent);
       // textBox.setContent(formattedContent.split('\n'), true);
@@ -257,10 +278,10 @@ exports.handler = async (argv: any) => {
       let rawLines = formattedContent.split('\n');
       lines = [];
       let lineWidth = contentWidth;
-      debugBox.setContent(`${lineWidth}`);
+      // debugBox.setContent(`${lineWidth}`);
       for (let line of rawLines) {
         if (line.length > lineWidth) {
-          debugBox.setContent(`${lineWidth} ${line.length}`);
+          // debugBox.setContent(`${lineWidth} ${line.length}`);
           let shortened = line.slice(0, lineWidth);
           lines.push(shortened);
           let overflow = line.slice(lineWidth);
@@ -269,7 +290,7 @@ exports.handler = async (argv: any) => {
             lines.push(extraLine);
             overflow = overflow.slice(lineWidth);
           }
-          debugBox.setContent(overflow);
+          // debugBox.setContent(overflow);
           if (overflow.length > 0) {
             lines.push(overflow);
           }
@@ -278,34 +299,69 @@ exports.handler = async (argv: any) => {
         }
       }
       index = 0;
-      debugBox.setContent(contentHeight);
+      // debugBox.setContent(contentHeight);
       textBox.setContent(lines.slice(0, contentHeight), true);
+      document.giveFocusTo(textBox);
     }
     menu.on('submit', onSubmit);
-    menu.on('key', function(key) {
+    textBox.on('key', function(key) {
+      let handled = false;
+      // debugBox.setContent(`tb ${key}`);
+      debugBox.setContent(highlight('let jaha = 1;\nconst rofl = "";', {language: 'js'}), true);
       if (!lines) {
-        return;
+        return handled;
       }
-      if (key === 'j') {
+      if (key === 'j' || key === 'DOWN') {
         index += 1;
         if (index >= lines.length) {
           index = lines.length - 1;
         }
         let currentLines = lines.slice(index, index + contentHeight);
         textBox.setContent(currentLines, true);
-      } else if (key === 'k') {
+        handled = true;
+      } else if (key === 'k' || key === 'UP') {
         index -= 1;
         index = index < 0 ? 0 : index;
         let currentLines = lines.slice(index, index + contentHeight);
         textBox.setContent(currentLines, true);
+        handled = true;
+      } else if (key === 'PAGE_DOWN') {
+        index += contentHeight;
+        if (index >= lines.length) {
+          index = lines.length - 1;
+        }
+        let currentLines = lines.slice(index, index + contentHeight);
+        textBox.setContent(currentLines, true);
+        handled = true;
+      } else if (key === 'PAGE_UP') {
+        index -= contentHeight;
+        index = index < 0 ? 0 : index;
+        let currentLines = lines.slice(index, index + contentHeight);
+        textBox.setContent(currentLines, true);
+        handled = true;
+      } else if (key === 'TAB') {
+        document.giveFocusTo(menu);
+        handled = true;
       }
-      // textBox.setContent([key]);
+      return handled;
+    });
+    terminal.on('mouse', function(name, data) {
+      // debugBox.setContent(JSON.stringify(document.focusElement));
+      if (name === 'MOUSE_WHEEL_UP') {
+        index -= 1;
+        index = index < 0 ? 0 : index;
+        let currentLines = lines.slice(index, index + contentHeight);
+        textBox.setContent(currentLines, true);
+      } else if (name === 'MOUSE_WHEEL_DOWN') {
+        index += 1;
+        if (index >= lines.length) {
+          index = lines.length - 1;
+        }
+        let currentLines = lines.slice(index, index + contentHeight);
+        textBox.setContent(currentLines, true);
+      }
     });
     terminal.on('resize', (width, height) => {
-      // console.log('aaaassssssssssssssssssss');
-      // textBox.height = height;
-      // console.log(textBox.height);
-      // textBox.draw();
       contentWidth = textBox.inputDst.width;
       contentHeight = textBox.inputDst.height;
       let currentLines = lines.slice(index, index + contentHeight);
