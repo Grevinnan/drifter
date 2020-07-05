@@ -13,6 +13,7 @@ terminal.on('key', (key: string) => {
     terminal.grabInput(false);
     terminal.fullscreen(false);
     terminal.applicationKeypad(false);
+    terminal.hideCursor(false);
     process.exit();
   }
 });

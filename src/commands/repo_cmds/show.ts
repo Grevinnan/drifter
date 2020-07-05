@@ -2,10 +2,73 @@ import path from 'path';
 import yargs from 'yargs';
 import getBitBucket, * as bbc from '../../bb_cloud';
 import * as ft from '../../format';
-import highlight from 'cli-highlight';
+import highlight, * as hl from 'cli-highlight';
 
 import tkit, * as term from 'terminal-kit';
 const terminal = tkit.terminal;
+
+const TERMINAL_FORMAT = {
+  'blue': '^b',
+  'cyan': '^c',
+  'red': '^r',
+  'green': '^g',
+  'yellow': '^y',
+  'grey': '^K',
+  'bold': '^+',
+  'underline': '^_',
+  'italic': '^/',
+};
+
+function tcolor(color: string) {
+  return function(text: string) {
+    return `${TERMINAL_FORMAT[color]}${text}^:`;
+  }
+}
+
+let theme: hl.Theme = {
+  keyword: tcolor('blue'),
+  built_in: tcolor('cyan'),
+  type: tcolor('cyan'),
+  literal: tcolor('blue'),
+  number: tcolor('green'),
+  regexp: tcolor('red'),
+  string: tcolor('red'),
+  subst: hl.plain,
+  symbol: hl.plain,
+  class: tcolor('blue'),
+  function: tcolor('yellow'),
+  title: hl.plain,
+  params: hl.plain,
+  comment: tcolor('green'),
+  doctag: tcolor('green'),
+  meta: tcolor('grey'),
+  'meta-keyword': hl.plain,
+  'meta-string': hl.plain,
+  section: hl.plain,
+  tag: tcolor('grey'),
+  name: tcolor('blue'),
+  'builtin-name': hl.plain,
+  attr: tcolor('cyan'),
+  attribute: hl.plain,
+  variable: hl.plain,
+  bullet: hl.plain,
+  code: hl.plain,
+  emphasis: tcolor('italic'),
+  strong: tcolor('bold'),
+  formula: hl.plain,
+  link: tcolor('underline'),
+  quote: hl.plain,
+  'selector-tag': hl.plain,
+  'selector-id': hl.plain,
+  'selector-class': hl.plain,
+  'selector-attr': hl.plain,
+  'selector-pseudo': hl.plain,
+  'template-tag': hl.plain,
+  'template-variable': hl.plain,
+  addition: tcolor('green'),
+  deletion: tcolor('red'),
+  default: hl.plain,
+}
 
 class SourceTreeWalker {
   bb: bbc.BitBucket;
@@ -19,11 +82,8 @@ class SourceTreeWalker {
 
   async walkTree(pathParts: string[] = []) {
     let paths = [];
-    let sourceFiles = await this.bb.getRepositorySrc(
-      this.repo,
-      this.commit,
-      ...pathParts
-    );
+    let sourceFiles =
+        await this.bb.getRepositorySrc(this.repo, this.commit, ...pathParts);
     // TODO: consider escaped_path?
     let directoryTasks = [];
     for (let file of sourceFiles) {
@@ -59,23 +119,23 @@ exports.aliases = [];
 exports.desc = 'Show repository data';
 exports.builder = (yargs: yargs.Argv<{}>) => {
   return yargs
-    .positional('repository', {
-      describe: 'Repository name/uuid',
-      type: 'string',
-      default: '',
-    })
-    .option('f', {
-      alias: 'list-files',
-      type: 'boolean',
-      description: 'List repository files',
-      default: false,
-    })
-    .option('E', {
-      alias: 'explore',
-      type: 'boolean',
-      description: 'Explore repositories files',
-      default: false,
-    });
+      .positional('repository', {
+        describe: 'Repository name/uuid',
+        type: 'string',
+        default: '',
+      })
+      .option('f', {
+        alias: 'list-files',
+        type: 'boolean',
+        description: 'List repository files',
+        default: false,
+      })
+      .option('E', {
+        alias: 'explore',
+        type: 'boolean',
+        description: 'Explore repositories files',
+        default: false,
+      });
 };
 
 exports.handler = async (argv: any) => {
@@ -105,9 +165,9 @@ exports.handler = async (argv: any) => {
     // console.log(srcFiles[0].links.self.href);
     // console.log(srcFiles[0].commit.links);
     // const i = 8;
-    // let content = await bb.getFromUrl(srcFiles[i].links.self.href, bb.string());
-    // console.log(srcFiles[i]);
-    // let extension = path.extname(srcFiles[i].path).slice(1);
+    // let content = await bb.getFromUrl(srcFiles[i].links.self.href,
+    // bb.string()); console.log(srcFiles[i]); let extension =
+    // path.extname(srcFiles[i].path).slice(1);
 
     // terminal(highlight(content, {language: extension}));
     terminal.fullscreen(true);
@@ -125,16 +185,14 @@ exports.handler = async (argv: any) => {
         y: 1,
         widthPercent: 100,
         heightPercent: 100,
-        rows: [
-          {
-            id: 'main_row',
-            heightPercent: 99,
-            columns: [
-              { id: 'files', widthPercent: 30 },
-              { id: 'content'},
-            ],
-          }
-        ],
+        rows: [{
+          id: 'main_row',
+          heightPercent: 99,
+          columns: [
+            {id: 'files', widthPercent: 30},
+            {id: 'content'},
+          ],
+        }],
       },
     });
     let items = srcFiles.map(file => {
@@ -149,8 +207,10 @@ exports.handler = async (argv: any) => {
       buttonKeyBindings:
           {ENTER: 'submit', CTRL_UP: 'submit', CTRL_DOWN: 'submit'},
       buttonActionKeyBindings: {CTRL_UP: 'up', CTRL_DOWN: 'down'},
-      // buttonEvenBlurAttr: { bgColor: '@dark-gray' , color: 'white' , bold: true },
-      buttonEvenBlurAttr: { bgColor: terminal.bgDefaultColor(), color: 'white' , bold: true },
+      // buttonEvenBlurAttr: { bgColor: '@dark-gray' , color: 'white' , bold:
+      // true },
+      buttonEvenBlurAttr:
+          {bgColor: terminal.bgDefaultColor(), color: 'white', bold: true},
       items: items,
       height: srcFiles.length,
     });
@@ -183,13 +243,14 @@ exports.handler = async (argv: any) => {
     let contentWidth = textBox.inputDst.width;
     let contentHeight = textBox.inputDst.height;
 
-    async function onSubmit(file , action ) {
+    async function onSubmit(file, action) {
       // console.log(action);
       let content = await bb.getFromUrl(file.links.self.href, bb.string());
       // console.log(srcFiles[i]);
       let extension = path.extname(file.path).slice(1);
-      // let formattedContent = highlight(content, {language: extension});
-      let formattedContent = content;
+      let formattedContent =
+          highlight(content, {language: extension, theme: theme});
+      // let formattedContent = content;
       // console.log(formattedContent);
       // textBox.setContent(formattedContent.split('\n'), true);
       // textBox.height = content.split('\n').length;
@@ -197,7 +258,7 @@ exports.handler = async (argv: any) => {
       lines = [];
       let lineWidth = contentWidth;
       debugBox.setContent(`${lineWidth}`);
-      for(let line of rawLines) {
+      for (let line of rawLines) {
         if (line.length > lineWidth) {
           debugBox.setContent(`${lineWidth} ${line.length}`);
           let shortened = line.slice(0, lineWidth);
@@ -220,8 +281,8 @@ exports.handler = async (argv: any) => {
       debugBox.setContent(contentHeight);
       textBox.setContent(lines.slice(0, contentHeight), true);
     }
-    menu.on( 'submit' , onSubmit ) ;
-    menu.on('key' , function (key) {
+    menu.on('submit', onSubmit);
+    menu.on('key', function(key) {
       if (!lines) {
         return;
       }
@@ -240,7 +301,7 @@ exports.handler = async (argv: any) => {
       }
       // textBox.setContent([key]);
     });
-    terminal.on( 'resize' , ( width , height ) => {
+    terminal.on('resize', (width, height) => {
       // console.log('aaaassssssssssssssssssss');
       // textBox.height = height;
       // console.log(textBox.height);
@@ -249,9 +310,9 @@ exports.handler = async (argv: any) => {
       contentHeight = textBox.inputDst.height;
       let currentLines = lines.slice(index, index + contentHeight);
       textBox.setContent(currentLines, true);
-    }) ;
+    });
 
-    terminal.hideCursor();
+    terminal.hideCursor(true);
     if (srcFiles.length > 0) {
       menu.focusValue(srcFiles[0]);
     }
