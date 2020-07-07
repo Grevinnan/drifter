@@ -25,52 +25,54 @@ function tcolor(color: string) {
   }
 }
 
-let theme: hl.Theme = {
-  keyword: tcolor('blue'),
-  built_in: tcolor('cyan'),
-  type: tcolor('cyan'),
-  literal: tcolor('blue'),
-  number: tcolor('green'),
-  regexp: tcolor('red'),
-  string: tcolor('red'),
-  subst: hl.plain,
-  symbol: hl.plain,
-  class: tcolor('blue'),
-  function: tcolor('yellow'),
-  title: hl.plain,
-  params: hl.plain,
-  comment: tcolor('green'),
-  doctag: tcolor('green'),
-  meta: tcolor('grey'),
-  'meta-keyword': hl.plain,
-  'meta-string': hl.plain,
-  section: hl.plain,
-  tag: tcolor('grey'),
-  name: tcolor('blue'),
-  'builtin-name': hl.plain,
-  attr: tcolor('cyan'),
-  attribute: hl.plain,
-  variable: hl.plain,
-  bullet: hl.plain,
-  code: hl.plain,
-  emphasis: tcolor('italic'),
-  strong: tcolor('bold'),
-  formula: hl.plain,
-  link: tcolor('underline'),
-  quote: hl.plain,
-  'selector-tag': hl.plain,
-  'selector-id': hl.plain,
-  'selector-class': hl.plain,
-  'selector-attr': hl.plain,
-  'selector-pseudo': hl.plain,
-  'template-tag': hl.plain,
-  'template-variable': hl.plain,
-  addition: tcolor('green'),
-  deletion: tcolor('red'),
-  default: hl.plain,
-}
+let theme: hl.Theme =
+    {
+      keyword: tcolor('blue'),
+      built_in: tcolor('cyan'),
+      type: tcolor('cyan'),
+      literal: tcolor('blue'),
+      number: tcolor('green'),
+      regexp: tcolor('red'),
+      string: tcolor('red'),
+      subst: hl.plain,
+      symbol: hl.plain,
+      class: tcolor('blue'),
+      function: tcolor('yellow'),
+      title: hl.plain,
+      params: hl.plain,
+      comment: tcolor('green'),
+      doctag: tcolor('green'),
+      meta: tcolor('grey'),
+      'meta-keyword': hl.plain,
+      'meta-string': hl.plain,
+      section: hl.plain,
+      tag: tcolor('grey'),
+      name: tcolor('blue'),
+      'builtin-name': hl.plain,
+      attr: tcolor('cyan'),
+      attribute: hl.plain,
+      variable: hl.plain,
+      bullet: hl.plain,
+      code: hl.plain,
+      emphasis: tcolor('italic'),
+      strong: tcolor('bold'),
+      formula: hl.plain,
+      link: tcolor('underline'),
+      quote: hl.plain,
+      'selector-tag': hl.plain,
+      'selector-id': hl.plain,
+      'selector-class': hl.plain,
+      'selector-attr': hl.plain,
+      'selector-pseudo': hl.plain,
+      'template-tag': hl.plain,
+      'template-variable': hl.plain,
+      addition: tcolor('green'),
+      deletion: tcolor('red'),
+      default: hl.plain,
+    }
 
-function escapeCaret(content: string) {
+function
+escapeCaret(content: string) {
   let escapedChars = [];
   for (let c of content) {
     if (c === '^') {
@@ -230,8 +232,9 @@ exports.handler = async (argv: any) => {
     let debugBox = new tkit.TextBox({
       parent: document,
       // content: 'DEBUG_BOX',
-      content: highlight('let jaha = 1;\nconst rofl = "pollo";', {language: 'js'}),
-      contentHasMarkup: 'ansi' ,
+      content:
+          highlight('let jaha = 1;\nconst rofl = "pollo";', {language: 'js'}),
+      contentHasMarkup: 'ansi',
       // disabled: true,
       attr: {bgColor: terminal.bgDefaultColor()},
       x: 0,
@@ -267,8 +270,11 @@ exports.handler = async (argv: any) => {
       content = escapeCaret(content);
       // let diff = process.hrtime(start);
       // debugBox.setContent(`${diff}`);
-      let formattedContent =
-          highlight(content, {language: extension, theme: theme});
+      let formattedContent = content;
+      if (hl.supportsLanguage(extension)) {
+        formattedContent = highlight(
+            content, {language: extension, theme: theme, ignoreIllegals: true});
+      }
       // let formattedContent =
       //     highlight(content, {language: extension});
       // let formattedContent = content;
@@ -307,7 +313,9 @@ exports.handler = async (argv: any) => {
     textBox.on('key', function(key) {
       let handled = false;
       // debugBox.setContent(`tb ${key}`);
-      debugBox.setContent(highlight('let jaha = 1;\nconst rofl = "";', {language: 'js'}), true);
+      debugBox.setContent(
+          highlight('let jaha = 1;\nconst rofl = "";', {language: 'js'}),
+          'ansi');
       if (!lines) {
         return handled;
       }

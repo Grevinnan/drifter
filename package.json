@@ -8,7 +8,7 @@
     "filesize": "^6.1.0",
     "osenv": "^0.1.5",
     "superagent": "^5.3.1",
-    "terminal-kit": "^1.35.10",
+    "terminal-kit": "^1.35.12",
     "ts-node": "^8.10.2",
     "typescript": "^3.9.6",
     "uuid": "^8.2.0",
@@ -18,7 +18,7 @@
   "description": "Bitbucket CLI Interface",
   "devDependencies": {
     "@types/filesize": "^5.0.0",
-    "@types/node": "^14.0.14",
+    "@types/node": "^14.0.19",
     "@types/osenv": "^0.1.0",
     "@types/superagent": "^4.1.8",
     "@types/terminal-kit": "^1.28.2",

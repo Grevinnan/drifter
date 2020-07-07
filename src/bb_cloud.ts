@@ -1,6 +1,6 @@
 import Config from './config';
 import ResourceManager, * as rm from './resource_manager';
-import { IAuth } from './config';
+import {IAuth} from './config';
 import sa from 'superagent';
 
 import tkit from 'terminal-kit';
@@ -29,9 +29,8 @@ class BitBucketCloud implements rm.IServer {
     this.cachePaths = BBCloudCacheFilter;
   }
   setAuthorization(request: sa.SuperAgentRequest): sa.SuperAgentRequest {
-    request
-      .set('Content-Type', 'application/json')
-      .set('Authorization', `Basic ${this.auth.password}`);
+    request.set('Content-Type', 'application/json')
+        .set('Authorization', `Basic ${this.auth.password}`);
     return request;
   }
 }
@@ -212,23 +211,17 @@ export class BitBucket {
 
   async getRepositorySrc(repo: IRepositoryPath, ...filePath: string[]) {
     return await this.get(
-      this.jsonList(),
-      'repositories',
-      repo.workspace,
-      repo.repository,
-      'src',
-      ...filePath
-    );
+        this.jsonList(), 'repositories', repo.workspace, repo.repository, 'src',
+        ...filePath);
   }
 
-  async findRepositoryInWorkspace(repository: string, workspace: any): Promise<any> {
+  async findRepositoryInWorkspace(repository: string, workspace: any):
+      Promise<any> {
     let repositories = await this.getRepositories(workspace.uuid);
+    let repoId = repository.toLowerCase();
     for (let repo of repositories) {
-      if (
-        repo.full_name === repository ||
-        repo.name === repository ||
-        repo.uuid === repository
-      ) {
+      if (repo.full_name.toLowerCase() === repoId ||
+          repo.name.toLowerCase() === repoId || repo.uuid === repoId) {
         return repo;
       }
     }
@@ -237,10 +230,11 @@ export class BitBucket {
 
   async findRepository(repository: string): Promise<any> {
     let workspaces = await this.getWorkspaces();
+    let repoId = repository.toLowerCase();
     for (let workspace of workspaces) {
       let repositories = await this.getRepositories(workspace.uuid);
       for (let repo of repositories) {
-        if (repo.full_name === repository || repo.uuid === repository) {
+        if (repo.full_name.toLowerCase() === repoId || repo.uuid === repoId) {
           return repo;
         }
       }
@@ -248,10 +242,11 @@ export class BitBucket {
     return null;
   }
 
-  async findWorkspace(workspaceId: string): Promise<any> {
+  async findWorkspace(workspace: string): Promise<any> {
     let workspaces = await this.getWorkspaces();
+    let workspaceId = workspace.toLowerCase();
     for (let ws of workspaces) {
-      if (ws.slug === workspaceId || ws.uuid === workspaceId) {
+      if (ws.slug.toLowerCase() === workspaceId || ws.uuid === workspaceId) {
         return ws;
       }
     }
