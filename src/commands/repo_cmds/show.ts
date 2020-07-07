@@ -173,30 +173,15 @@ exports.handler = async (argv: any) => {
       workspace: repo.workspace.uuid,
       repository: repo.uuid,
     });
-    // terminal("^ggrön^ ^rröd^\n");
-    // process.exit();
-    // console.log(srcFiles[0]);
-    // console.log(srcFiles[0].links.self.href);
-    // console.log(srcFiles[0].commit.links);
-    // const i = 8;
-    // let content = await bb.getFromUrl(srcFiles[i].links.self.href,
-    // bb.string()); console.log(srcFiles[i]); let extension =
-    // path.extname(srcFiles[i].path).slice(1);
-
-    // terminal(highlight(content, {language: extension}));
     terminal.fullscreen(true);
-    // let password = await terminal.inputField({}).promise;
-    // terminal(password);
     // @ts-ignore
     let document = terminal.createDocument({});
-    // let document = terminal.createDocument({palette: new tkit.Palette()});
     // @ts-ignore
     var layout = new tkit.Layout({
       parent: document,
-      // boxChars: 'double',
       layout: {
         id: 'main',
-        y: 2,
+        y: 1,
         widthPercent: 100,
         heightPercent: 100,
         rows: [{
@@ -215,168 +200,66 @@ exports.handler = async (argv: any) => {
     // @ts-ignore
     let menu = new tkit.ColumnMenu({
       parent: document.elements.files,
-      // x: 0,
-      // y: 0,
-      // width: 30,
       buttonKeyBindings:
           {ENTER: 'submit', CTRL_UP: 'submit', CTRL_DOWN: 'submit'},
       buttonActionKeyBindings: {CTRL_UP: 'up', CTRL_DOWN: 'down'},
-      // buttonEvenBlurAttr: { bgColor: '@dark-gray' , color: 'white' , bold:
-      // true },
       buttonEvenBlurAttr:
           {bgColor: terminal.bgDefaultColor(), color: 'white', bold: true},
       items: items,
       height: srcFiles.length,
     });
+
     // @ts-ignore
     let debugBox = new tkit.TextBox({
       parent: document,
-      // content: 'DEBUG_BOX',
-      content:
-          highlight('let jaha = 1;\nconst rofl = "pollo";', {language: 'js'}),
+      content: 'DEBUG_BOX',
       contentHasMarkup: 'ansi',
-      // disabled: true,
       attr: {bgColor: terminal.bgDefaultColor()},
       x: 0,
       y: 0,
       width: 80,
-      height: 2,
-      // height: terminal.height,
+      height: 1,
       wrap: true,
       wordWrap: true,
       lineWrap: true,
     });
     // @ts-ignore
-    let textBox = new tkit.Text({
+    let textBox = new tkit.TextBox({
       parent: document.elements.content,
       content: '',
+      scrollable: true,
+      vScrollBar: true,
+      wordWrap: true,
+      autoWidth: true,
+      autoHeight: true,
       attr: {bgColor: terminal.bgDefaultColor()},
     });
-    // debugBox.setContent(`${textBox.inputDst.dst.width}`);
-    // debugBox.setContent(`${textBox.inputDst.width}`);
-    // console.log(textBox);
-    // process.exit();
-    let lines = null;
-    let index = 0;
-    let contentWidth = textBox.inputDst.width;
-    let contentHeight = textBox.inputDst.height;
 
     async function onSubmit(file, action) {
       // console.log(action);
       let content = await bb.getFromUrl(file.links.self.href, bb.string());
-      // console.log(srcFiles[i]);
       let extension = path.extname(file.path).slice(1);
-      // let start = process.hrtime();
       content = escapeCaret(content);
-      // let diff = process.hrtime(start);
-      // debugBox.setContent(`${diff}`);
       let formattedContent = content;
       if (hl.supportsLanguage(extension)) {
         formattedContent = highlight(
             content, {language: extension, theme: theme, ignoreIllegals: true});
       }
-      // let formattedContent =
-      //     highlight(content, {language: extension});
-      // let formattedContent = content;
-      // console.log(formattedContent);
-      // textBox.setContent(formattedContent.split('\n'), true);
-      // textBox.height = content.split('\n').length;
-      let rawLines = formattedContent.split('\n');
-      lines = [];
-      let lineWidth = contentWidth;
-      // debugBox.setContent(`${lineWidth}`);
-      for (let line of rawLines) {
-        if (line.length > lineWidth) {
-          // debugBox.setContent(`${lineWidth} ${line.length}`);
-          let shortened = line.slice(0, lineWidth);
-          lines.push(shortened);
-          let overflow = line.slice(lineWidth);
-          while (overflow > lineWidth) {
-            let extraLine = overflow.slice(0, lineWidth);
-            lines.push(extraLine);
-            overflow = overflow.slice(lineWidth);
-          }
-          // debugBox.setContent(overflow);
-          if (overflow.length > 0) {
-            lines.push(overflow);
-          }
-        } else {
-          lines.push(line);
-        }
-      }
-      index = 0;
-      // debugBox.setContent(contentHeight);
-      textBox.setContent(lines.slice(0, contentHeight), true);
+      textBox.setContent(formattedContent, true);
+      textBox.scrollTo(0, 0);
       document.giveFocusTo(textBox);
     }
     menu.on('submit', onSubmit);
-    textBox.on('key', function(key) {
+    textBox.on('key', function(key: string) {
       let handled = false;
-      // debugBox.setContent(`tb ${key}`);
-      debugBox.setContent(
-          highlight('let jaha = 1;\nconst rofl = "";', {language: 'js'}),
-          'ansi');
-      if (!lines) {
-        return handled;
-      }
-      if (key === 'j' || key === 'DOWN') {
-        index += 1;
-        if (index >= lines.length) {
-          index = lines.length - 1;
-        }
-        let currentLines = lines.slice(index, index + contentHeight);
-        textBox.setContent(currentLines, true);
-        handled = true;
-      } else if (key === 'k' || key === 'UP') {
-        index -= 1;
-        index = index < 0 ? 0 : index;
-        let currentLines = lines.slice(index, index + contentHeight);
-        textBox.setContent(currentLines, true);
-        handled = true;
-      } else if (key === 'PAGE_DOWN') {
-        index += contentHeight;
-        if (index >= lines.length) {
-          index = lines.length - 1;
-        }
-        let currentLines = lines.slice(index, index + contentHeight);
-        textBox.setContent(currentLines, true);
-        handled = true;
-      } else if (key === 'PAGE_UP') {
-        index -= contentHeight;
-        index = index < 0 ? 0 : index;
-        let currentLines = lines.slice(index, index + contentHeight);
-        textBox.setContent(currentLines, true);
-        handled = true;
-      } else if (key === 'TAB') {
+       if (key === 'TAB') {
         document.giveFocusTo(menu);
         handled = true;
       }
       return handled;
     });
-    terminal.on('mouse', function(name, data) {
-      // debugBox.setContent(JSON.stringify(document.focusElement));
-      if (name === 'MOUSE_WHEEL_UP') {
-        index -= 1;
-        index = index < 0 ? 0 : index;
-        let currentLines = lines.slice(index, index + contentHeight);
-        textBox.setContent(currentLines, true);
-      } else if (name === 'MOUSE_WHEEL_DOWN') {
-        index += 1;
-        if (index >= lines.length) {
-          index = lines.length - 1;
-        }
-        let currentLines = lines.slice(index, index + contentHeight);
-        textBox.setContent(currentLines, true);
-      }
-    });
-    terminal.on('resize', (width, height) => {
-      contentWidth = textBox.inputDst.width;
-      contentHeight = textBox.inputDst.height;
-      let currentLines = lines.slice(index, index + contentHeight);
-      textBox.setContent(currentLines, true);
-    });
 
-    terminal.hideCursor(true);
+    terminal.hideCursor(false);
     if (srcFiles.length > 0) {
       menu.focusValue(srcFiles[0]);
     }
