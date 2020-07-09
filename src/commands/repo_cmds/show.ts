@@ -206,7 +206,8 @@ exports.handler = async (argv: any) => {
       buttonEvenBlurAttr:
           {bgColor: terminal.bgDefaultColor(), color: 'white', bold: true},
       items: items,
-      height: srcFiles.length,
+      autoWidth: true,
+      autoHeight: true,
     });
 
     // @ts-ignore
@@ -259,7 +260,7 @@ exports.handler = async (argv: any) => {
       return handled;
     });
 
-    terminal.hideCursor(false);
+    terminal.hideCursor(true);
     if (srcFiles.length > 0) {
       menu.focusValue(srcFiles[0]);
     }
