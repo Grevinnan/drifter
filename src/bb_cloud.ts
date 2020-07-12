@@ -161,28 +161,17 @@ export class BitBucket {
     return new RawHandler();
   }
 
-  async getFromUrl<T>(url: string, handler: rm.IDataHandler<T>) {
+  async getFromUrl<T>(url: string, workspaceUuid: string, repoUuid: string, handler: rm.IDataHandler<T>) {
     let resourceUrl: string = url;
     if (url.indexOf(this.bbCloud.url) === 0) {
       resourceUrl = url.slice(this.bbCloud.url.length);
     }
     let resourceParts = resourceUrl.split('/');
+    // Substitute the name with the UUIDs
     if (resourceParts[0] === 'repositories' && resourceParts.length >= 3) {
-      let wsId = resourceParts[1];
-      let ws = await this.findWorkspace(wsId);
-      if (!ws) {
-        return null;
-      }
-      let repoId = resourceParts[2];
-      let repo = await this.findRepositoryInWorkspace(repoId, ws);
-      if (!repo) {
-        return null;
-      }
-      resourceParts[1] = ws.uuid;
-      resourceParts[2] = repo.uuid;
-      // console.log(repo);
+      resourceParts[1] = workspaceUuid;
+      resourceParts[2] = repoUuid;
     }
-    // console.log(resourceParts);
     return await this.get(handler, ...resourceParts);
   }
 

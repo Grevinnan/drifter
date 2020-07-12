@@ -169,9 +169,11 @@ exports.handler = async (argv: any) => {
     });
     srcFiles.forEach((file) => terminal(`${file.path}\n`));
   } else if (argv.E) {
+    let workspaceUuid = repo.workspace.uuid;
+    let repoUuid = repo.uuid;
     let srcFiles = await walkSourceTree(bb, {
-      workspace: repo.workspace.uuid,
-      repository: repo.uuid,
+      workspace: workspaceUuid,
+      repository: repoUuid,
     });
     terminal.fullscreen(true);
     // @ts-ignore
@@ -246,7 +248,7 @@ exports.handler = async (argv: any) => {
 
     async function onSubmit(file, action) {
       let url = file.links.self.href;
-      let content = await bb.getFromUrl(url, bb.raw());
+      let content = await bb.getFromUrl(url, workspaceUuid, repoUuid, bb.raw());
       if (!content) {
         statusBox.setContent(`^rCould not get ${url}`, true);
         return;
