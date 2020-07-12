@@ -1,7 +1,8 @@
-import Cache from './cache';
 import sa from 'superagent';
-
 import tkit from 'terminal-kit';
+
+import Cache from './cache';
+
 const terminal = tkit.terminal;
 
 export interface IManagerOptions {
@@ -120,8 +121,9 @@ export default class ResourceManager {
     if (!result) {
       result = await this.fetch(resource, server, handler);
       if (!result) {
-        terminal.error(`Could not get ${resource.id.join('/')}, aborting.\n`);
-        process.exit(1);
+        this.options.verbose &&
+          terminal.error(`Could not get ${resource.id.join('/')}, aborting.\n`);
+        return null;
       }
       this.cache.saveResource(resource.id, handler.serialize(result), filename);
     }

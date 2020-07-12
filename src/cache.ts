@@ -1,11 +1,13 @@
 import fs from 'fs';
+import { isBinary } from 'istextorbinary';
+import _ from 'lodash';
 import path from 'path';
 import tkit from 'terminal-kit';
 
 import { ICacheOptions } from './config';
-import getXdgDirectory from './xdg';
 import * as ds from './directory_size';
 import * as tu from './terminal_util';
+import getXdgDirectory from './xdg';
 
 const terminal = tkit.terminal;
 
@@ -26,22 +28,21 @@ export default class Cache {
     return path.join(this.cacheDirectory, ...paths);
   }
 
-  getCacheSize() : number {
-      return ds.getTotalSize(this.cacheDirectory);
+  getCacheSize(): number {
+    return ds.getTotalSize(this.cacheDirectory);
   }
 
   async clear() {
     terminal(`Are you sure you want to clear the cache ${this.cacheDirectory}?\n`);
     let clearCache = await terminal.yesOrNo(tu.yesOrNoKeyMaps).promise;
     if (clearCache) {
-      await fs.promises.rmdir(this.cacheDirectory, {recursive: true});
+      await fs.promises.rmdir(this.cacheDirectory, { recursive: true });
       terminal(`deleted ${this.cacheDirectory}\n`);
     }
   }
 
   async getResource(pathParts: string[], filename: string): Promise<any> {
     let cachePath = this.getCachePath(pathParts);
-    // console.log(cachePath);
     if (!fs.existsSync(cachePath)) {
       this.verbose && terminal(`cache: ${cachePath} does not exist\n`);
       return null;
@@ -56,7 +57,10 @@ export default class Cache {
 
     let data = null;
     try {
-      data = fs.readFileSync(dataPath, 'utf-8');
+      data = fs.readFileSync(dataPath);
+      if (!isBinary(null, data)) {
+        data = new TextDecoder().decode(data);
+      }
     } catch (error) {
       terminal.error(`cache: could not parse ${dataPath} : ${error}\n`);
       return null;
@@ -64,7 +68,11 @@ export default class Cache {
     return data;
   }
 
-  async saveResource(pathParts: string[], data: string, filename: string): Promise<boolean> {
+  async saveResource(
+    pathParts: string[],
+    data: string,
+    filename: string
+  ): Promise<boolean> {
     let cachePath = this.getCachePath(pathParts);
     if (!fs.existsSync(cachePath)) {
       fs.mkdirSync(cachePath, { recursive: true });

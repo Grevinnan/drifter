@@ -246,12 +246,19 @@ exports.handler = async (argv: any) => {
 
     async function onSubmit(file, action) {
       let url = file.links.self.href;
-      let content = await bb.getFromUrl(url, bb.string());
+      let content = await bb.getFromUrl(url, bb.raw());
       if (!content) {
-        statusBox.setContent(`Could not get ${url}`);
+        statusBox.setContent(`^rCould not get ${url}`, true);
         return;
       }
+
       statusBox.setContent(`Loaded ${url}`);
+      // Binary content
+      if (typeof(content) === 'object') {
+        textBox.setContent('^y<binary, not showing>', true);
+        return;
+      }
+
       let extension = path.extname(file.path).slice(1);
       content = escapeCaret(content);
       let formattedContent = content;

@@ -2,6 +2,7 @@ import Config from './config';
 import ResourceManager, * as rm from './resource_manager';
 import {IAuth} from './config';
 import sa from 'superagent';
+import {isBinary} from 'istextorbinary';
 
 import tkit from 'terminal-kit';
 const terminal = tkit.terminal;
@@ -99,14 +100,22 @@ class JsonHandler<U = any> implements rm.IDataHandler<U> {
   }
 }
 
-class StringHandler implements rm.IDataHandler<string> {
+class RawHandler implements rm.IDataHandler<any> {
   data: string;
   constructor() {
     this.data = null;
   }
 
   add(result: any): sa.SuperAgentRequest {
+    // Check text first, if not, use body
     this.data = result.text;
+    if (this.data === undefined) {
+      this.data = result.body;
+    }
+    // Check if we should decode the data
+    if (typeof(this.data) === 'object' && !isBinary(null, this.data)) {
+      this.data = new TextDecoder().decode(this.data);
+    }
     return null;
   }
 
@@ -148,8 +157,8 @@ export class BitBucket {
     return new JsonHandler();
   }
 
-  string() {
-    return new StringHandler();
+  raw() {
+    return new RawHandler();
   }
 
   async getFromUrl<T>(url: string, handler: rm.IDataHandler<T>) {
