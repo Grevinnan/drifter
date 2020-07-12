@@ -1,8 +1,8 @@
 import Config from './config';
 import ResourceManager, * as rm from './resource_manager';
-import {IAuth} from './config';
+import { IAuth } from './config';
 import sa from 'superagent';
-import {isBinary} from 'istextorbinary';
+import { isBinary } from 'istextorbinary';
 
 import tkit from 'terminal-kit';
 const terminal = tkit.terminal;
@@ -30,8 +30,9 @@ class BitBucketCloud implements rm.IServer {
     this.cachePaths = BBCloudCacheFilter;
   }
   setAuthorization(request: sa.SuperAgentRequest): sa.SuperAgentRequest {
-    request.set('Content-Type', 'application/json')
-        .set('Authorization', `Basic ${this.auth.password}`);
+    request
+      .set('Content-Type', 'application/json')
+      .set('Authorization', `Basic ${this.auth.password}`);
     return request;
   }
 }
@@ -39,15 +40,21 @@ class BitBucketCloud implements rm.IServer {
 // TODO: base class
 class JsonListHandler<U = any> implements rm.IDataHandler<U[]> {
   list: U[];
-  constructor() {
+  maxPages: number;
+  index: number;
+  constructor(maxPages: number = 0) {
     this.list = [];
+    this.maxPages = maxPages;
+    this.index = 0;
   }
 
   add(result: any): sa.SuperAgentRequest {
     let nextRequest: sa.SuperAgentRequest = null;
     this.list.push(...result.body.values);
     let nextPage = result.body.next;
-    if (nextPage) {
+    this.index += 1;
+    const useMaxPages = this.maxPages > 0;
+    if (nextPage && (!useMaxPages || this.index < this.maxPages)) {
       nextRequest = sa.get(nextPage);
     }
     return nextRequest;
@@ -113,7 +120,7 @@ class RawHandler implements rm.IDataHandler<any> {
       this.data = result.body;
     }
     // Check if we should decode the data
-    if (typeof(this.data) === 'object' && !isBinary(null, this.data)) {
+    if (typeof this.data === 'object' && !isBinary(null, this.data)) {
       this.data = new TextDecoder().decode(this.data);
     }
     return null;
@@ -149,8 +156,8 @@ export class BitBucket {
     this.manager.registerServer('bb-cloud', this.bbCloud);
   }
 
-  jsonList() {
-    return new JsonListHandler();
+  jsonList(maxPages: number = 0) {
+    return new JsonListHandler(maxPages);
   }
 
   json() {
@@ -161,7 +168,12 @@ export class BitBucket {
     return new RawHandler();
   }
 
-  async getFromUrl<T>(url: string, workspaceUuid: string, repoUuid: string, handler: rm.IDataHandler<T>) {
+  async getFromUrl<T>(
+    url: string,
+    workspaceUuid: string,
+    repoUuid: string,
+    handler: rm.IDataHandler<T>
+  ) {
     let resourceUrl: string = url;
     if (url.indexOf(this.bbCloud.url) === 0) {
       resourceUrl = url.slice(this.bbCloud.url.length);
@@ -207,19 +219,26 @@ export class BitBucket {
     return await this.get(this.jsonList(), 'repositories', workspace);
   }
 
-  async getRepositorySrc(repo: IRepositoryPath, ...filePath: string[]) {
+  async getRepositorySrc(repo: IRepositoryPath, maxPages: number, ...filePath: string[]) {
     return await this.get(
-        this.jsonList(), 'repositories', repo.workspace, repo.repository, 'src',
-        ...filePath);
+      this.jsonList(maxPages),
+      'repositories',
+      repo.workspace,
+      repo.repository,
+      'src',
+      ...filePath
+    );
   }
 
-  async findRepositoryInWorkspace(repository: string, workspace: any):
-      Promise<any> {
+  async findRepositoryInWorkspace(repository: string, workspace: any): Promise<any> {
     let repositories = await this.getRepositories(workspace.uuid);
     let repoId = repository.toLowerCase();
     for (let repo of repositories) {
-      if (repo.full_name.toLowerCase() === repoId ||
-          repo.name.toLowerCase() === repoId || repo.uuid === repoId) {
+      if (
+        repo.full_name.toLowerCase() === repoId ||
+        repo.name.toLowerCase() === repoId ||
+        repo.uuid === repoId
+      ) {
         return repo;
       }
     }

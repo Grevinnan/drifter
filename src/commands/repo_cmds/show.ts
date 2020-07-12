@@ -97,7 +97,7 @@ class SourceTreeWalker {
   async walkTree(pathParts: string[] = []) {
     let paths = [];
     let sourceFiles =
-        await this.bb.getRepositorySrc(this.repo, this.commit, ...pathParts);
+        await this.bb.getRepositorySrc(this.repo, 0, this.commit, ...pathParts);
     // TODO: consider escaped_path?
     let directoryTasks = [];
     for (let file of sourceFiles) {
@@ -118,7 +118,8 @@ class SourceTreeWalker {
 }
 
 async function walkSourceTree(bb: bbc.BitBucket, repo: bbc.IRepositoryPath) {
-  let rootFiles = await bb.getRepositorySrc(repo);
+  // Only get 1 page, we just need the commit!
+  let rootFiles = await bb.getRepositorySrc(repo, 1);
   if (rootFiles.length > 0) {
     let commit: string = rootFiles[0].commit.hash;
     // We fetch the same files again but through another endpoint
