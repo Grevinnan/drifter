@@ -177,23 +177,26 @@ exports.handler = async (argv: any) => {
     // @ts-ignore
     let document = terminal.createDocument({});
     // @ts-ignore
-    var layout = new tkit.Layout({
-      parent: document,
-      layout: {
-        id: 'main',
-        y: 1,
-        widthPercent: 100,
-        heightPercent: 100,
-        rows: [{
-          id: 'main_row',
-          heightPercent: 99,
-          columns: [
-            {id: 'files', widthPercent: 30},
-            {id: 'content'},
-          ],
-        }],
-      },
-    });
+    var layout = new tkit.Layout(
+        {
+          parent: document,
+          layout: {
+            id: 'main',
+            y: 2,
+            widthPercent: 100,
+            heightPercent: 100,
+            rows: [{
+              id: 'main_row',
+              columns: [
+                {id: 'files', widthPercent: 30},
+                {id: 'content'},
+              ],
+            }
+
+            ]
+          },
+        },
+    );
     let items = srcFiles.map(file => {
       return {content: file.path, value: file};
     });
@@ -211,18 +214,23 @@ exports.handler = async (argv: any) => {
     });
 
     // @ts-ignore
-    let debugBox = new tkit.TextBox({
+    let header = new tkit.TextBox({
       parent: document,
-      content: 'DEBUG_BOX',
-      contentHasMarkup: 'ansi',
+      content: `^+^y${repo.full_name}`,
+      contentHasMarkup: true,
+      attr: {bgColor: terminal.bgDefaultColor()},
+      autoWidth: true,
+      height: 1,
+    });
+    // @ts-ignore
+    let statusBox = new tkit.TextBox({
+      parent: document,
+      content: '',
       attr: {bgColor: terminal.bgDefaultColor()},
       x: 0,
-      y: 0,
-      width: 80,
+      y: 1,
+      autoWidth: true,
       height: 1,
-      wrap: true,
-      wordWrap: true,
-      lineWrap: true,
     });
     // @ts-ignore
     let textBox = new tkit.TextBox({
@@ -237,8 +245,13 @@ exports.handler = async (argv: any) => {
     });
 
     async function onSubmit(file, action) {
-      // console.log(action);
-      let content = await bb.getFromUrl(file.links.self.href, bb.string());
+      let url = file.links.self.href;
+      let content = await bb.getFromUrl(url, bb.string());
+      if (!content) {
+        statusBox.setContent(`Could not get ${url}`);
+        return;
+      }
+      statusBox.setContent(`Loaded ${url}`);
       let extension = path.extname(file.path).slice(1);
       content = escapeCaret(content);
       let formattedContent = content;
@@ -253,7 +266,7 @@ exports.handler = async (argv: any) => {
     menu.on('submit', onSubmit);
     textBox.on('key', function(key: string) {
       let handled = false;
-       if (key === 'TAB') {
+      if (key === 'TAB') {
         document.giveFocusTo(menu);
         handled = true;
       }
@@ -267,5 +280,4 @@ exports.handler = async (argv: any) => {
   } else {
     terminal(ft.formatRepository(repo));
   }
-  // process.exit();
 };
