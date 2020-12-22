@@ -13,7 +13,8 @@ export interface IRepositoryPath {
 }
 
 const JIRACloudCacheFilter: rm.ResourceId[] = [
-  // ['user'],
+  // TODO
+  // ['myself'],
   // ['workspaces'],
   // ['workspaces', '*', 'members'],
   // ['repositories', '*'],
@@ -154,7 +155,7 @@ export class Jira {
     this.config = config;
     this.manager = new ResourceManager(options);
     this.JiraCloud = new JiraCloud(config.auth);
-    this.manager.registerServer('bb-cloud', this.JiraCloud);
+    this.manager.registerServer('jira-cloud', this.JiraCloud);
   }
 
   jsonList(maxPages: number = 0) {
@@ -190,7 +191,7 @@ export class Jira {
 
   async get<T>(handler: rm.IDataHandler<T>, ...id: string[]) {
     let resource: rm.IResource = {
-      server: 'bb-cloud',
+      server: 'jira-cloud',
       id: id,
     };
     return await this.manager.get(resource, handler);

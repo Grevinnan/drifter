@@ -113,7 +113,8 @@ export default class ResourceManager {
       return result;
     }
     // Try to get the resource from the cache if applicable
-    if (!this.options.forceSynchronize && this.isFiltered(resource.id, server)) {
+    const isFiltered = this.isFiltered(resource.id, server);
+    if (!this.options.forceSynchronize && isFiltered) {
       this.options.verbose && terminal.yellow(`rm: filtered ${resourceStr}\n`);
       result = handler.deserialize(await this.cache.getResource(resource.id, filename));
     }
@@ -125,7 +126,9 @@ export default class ResourceManager {
           terminal.error(`Could not get ${resource.id.join('/')}, aborting.\n`);
         return null;
       }
-      this.cache.saveResource(resource.id, handler.serialize(result), filename);
+      if (isFiltered) {
+        this.cache.saveResource(resource.id, handler.serialize(result), filename);
+      }
     }
     this.resources.set(resourceStr, result);
     return result;
