@@ -1,5 +1,5 @@
 import yargs from 'yargs';
-import * as bbc from '../bb_cloud';
+import * as jirac from '../jira_cloud';
 
 exports.command = 'cg';
 exports.aliases = ['config'];
@@ -13,7 +13,7 @@ exports.builder = {
   },
 };
 exports.handler = async (argv: any) => {
-  let config = await bbc.getConfig();
+  let config = await jirac.getConfig();
   if (argv.clear) {
     await config.clearConfig();
   } else {

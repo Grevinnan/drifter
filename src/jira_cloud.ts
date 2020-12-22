@@ -12,22 +12,23 @@ export interface IRepositoryPath {
   repository: string;
 }
 
-const BBCloudCacheFilter: rm.ResourceId[] = [
-  ['user'],
-  ['workspaces'],
-  ['workspaces', '*', 'members'],
-  ['repositories', '*'],
-  ['repositories', '*', '*', 'src', '**'],
+const JIRACloudCacheFilter: rm.ResourceId[] = [
+  // ['user'],
+  // ['workspaces'],
+  // ['workspaces', '*', 'members'],
+  // ['repositories', '*'],
+  // ['repositories', '*', '*', 'src', '**'],
 ];
 
-class BitBucketCloud implements rm.IServer {
+class JiraCloud implements rm.IServer {
   auth: IAuth;
   url: string;
   cachePaths: rm.ResourceId[];
   constructor(auth: IAuth) {
     this.auth = auth;
-    this.url = 'https://api.bitbucket.org/2.0/';
-    this.cachePaths = BBCloudCacheFilter;
+    // TODO: Add configuration for domain
+    this.url = 'https://domain.atlassian.net/rest/api/2/';
+    this.cachePaths = JIRACloudCacheFilter;
   }
   setAuthorization(request: sa.SuperAgentRequest): sa.SuperAgentRequest {
     request
@@ -145,15 +146,15 @@ class RawHandler implements rm.IDataHandler<any> {
 }
 
 // TODO: cache results in class(RM?)
-export class BitBucket {
+export class Jira {
   config: Config;
   manager: ResourceManager;
-  bbCloud: rm.IServer;
+  JiraCloud: rm.IServer;
   constructor(config: Config, options: rm.IManagerOptions) {
     this.config = config;
     this.manager = new ResourceManager(options);
-    this.bbCloud = new BitBucketCloud(config.auth);
-    this.manager.registerServer('bb-cloud', this.bbCloud);
+    this.JiraCloud = new JiraCloud(config.auth);
+    this.manager.registerServer('bb-cloud', this.JiraCloud);
   }
 
   jsonList(maxPages: number = 0) {
@@ -175,8 +176,8 @@ export class BitBucket {
     handler: rm.IDataHandler<T>
   ) {
     let resourceUrl: string = url;
-    if (url.indexOf(this.bbCloud.url) === 0) {
-      resourceUrl = url.slice(this.bbCloud.url.length);
+    if (url.indexOf(this.JiraCloud.url) === 0) {
+      resourceUrl = url.slice(this.JiraCloud.url.length);
     }
     let resourceParts = resourceUrl.split('/');
     // Substitute the name with the UUIDs
@@ -196,7 +197,7 @@ export class BitBucket {
   }
 
   async getUser() {
-    return await this.get(this.json(), 'user');
+    return await this.get(this.json(), 'myself');
   }
 
   async getPullrequests(user: string) {
@@ -291,7 +292,7 @@ function getOptions(argv): rm.IManagerOptions {
   return managerOptions;
 }
 
-export default async function getBitBucket(argv): Promise<BitBucket> {
+export default async function getJira(argv): Promise<Jira> {
   let config = await getConfig();
-  return new BitBucket(config, getOptions(argv));
+  return new Jira(config, getOptions(argv));
 }
