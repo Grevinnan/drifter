@@ -19,7 +19,7 @@ terminal.on('key', (key: string) => {
 });
 
 const base = yargs
-  .scriptName('bbq')
+  .scriptName('drifter')
   .version('v0.0.1')
   .alias('h', 'help')
   .strict(true)

@@ -1,7 +1,7 @@
 {
   "author": "Grevinnan",
   "bin": {
-    "bbq": "bin/bbq.js"
+    "drifter": "bin/drifter.js"
   },
   "dependencies": {
     "cli-highlight": "^2.1.4",
@@ -38,19 +38,19 @@
     "cli",
     "tool"
   ],
-  "name": "bbq",
+  "name": "drifter",
   "scripts": {
-    "start": "nodemon --watch 'src/**/*.ts' --exec 'ts-node' src/bbq.ts",
+    "start": "nodemon --watch 'src/**/*.ts' --exec 'ts-node' src/drifter.ts",
     "build": "tsc"
   },
   "_moduleAliases": {
     "@app": "./src"
   },
   "version": "0.0.1",
-  "main": "bbq",
+  "main": "drifter",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Grevinnan/bbq"
+    "url": "git+https://github.com/Grevinnan/drifter"
   },
   "prettier": {
     "singleQuote": true,
@@ -59,7 +59,7 @@
   },
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/Grevinnan/bbq/issues"
+    "url": "https://github.com/Grevinnan/drifter/issues"
   },
-  "homepage": "https://github.com/Grevinnan/bbq#readme"
+  "homepage": "https://github.com/Grevinnan/drifter#readme"
 }

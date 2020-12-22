@@ -14,9 +14,9 @@ export default function getXdgDirectory(
   // TODO: check this out more in detail
   let user = (osenv.user() || uuid.v4()).replace(/\\/g, '');
   var baseDirectory = xdgBaseDir[name] || path.join(tempdir(), user, `.${name}`);
-  let bbqPath = path.join(baseDirectory, "bbq");
-  if (create && !fs.existsSync(bbqPath)) {
-    fs.mkdirSync(bbqPath);
+  let drifterPath = path.join(baseDirectory, "drifter");
+  if (create && !fs.existsSync(drifterPath)) {
+    fs.mkdirSync(drifterPath);
   }
-  return bbqPath;
+  return drifterPath;
 }
