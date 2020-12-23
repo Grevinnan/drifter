@@ -2,7 +2,6 @@ import Config from './config';
 import ResourceManager, * as rm from './resource_manager';
 import { IAuth } from './config';
 import sa from 'superagent';
-import { isBinary } from 'istextorbinary';
 
 import tkit from 'terminal-kit';
 const terminal = tkit.terminal;
@@ -109,43 +108,6 @@ class JsonHandler<U = any> implements rm.IDataHandler<U> {
   }
 }
 
-class RawHandler implements rm.IDataHandler<any> {
-  data: string;
-  constructor() {
-    this.data = null;
-  }
-
-  add(result: any): sa.SuperAgentRequest {
-    // Check text first, if not, use body
-    this.data = result.text;
-    if (this.data === undefined) {
-      this.data = result.body;
-    }
-    // Check if we should decode the data
-    if (typeof this.data === 'object' && !isBinary(null, this.data)) {
-      this.data = new TextDecoder().decode(this.data);
-    }
-    return null;
-  }
-
-  get(): string {
-    return this.data;
-  }
-
-  serialize(data: string): string {
-    return data;
-  }
-
-  deserialize(data: string): string {
-    return data;
-  }
-
-  getCacheName(): string {
-    // TODO: Maybe use file extension for files?
-    return 'data';
-  }
-}
-
 // TODO: cache results in class(RM?)
 export class Jira {
   config: Config;
@@ -164,10 +126,6 @@ export class Jira {
 
   json() {
     return new JsonHandler();
-  }
-
-  raw() {
-    return new RawHandler();
   }
 
   async getFromUrl<T>(
