@@ -27,7 +27,7 @@ class JiraCloud implements rm.IServer {
   constructor(auth: IAuth) {
     this.auth = auth;
     // TODO: Add configuration for domain
-    this.url = 'https://domain.atlassian.net/rest/api/2/';
+    this.url = 'https://domain.atlassian.net/rest/api/3/';
     this.cachePaths = JIRACloudCacheFilter;
   }
   setAuthorization(request: sa.SuperAgentRequest): sa.SuperAgentRequest {
@@ -38,21 +38,25 @@ class JiraCloud implements rm.IServer {
   }
 }
 
-// TODO: base class
 class JsonListHandler<U = any> implements rm.IDataHandler<U[]> {
   list: U[];
   maxPages: number;
+  listName: string;
   index: number;
-  constructor(maxPages: number = 0) {
+  constructor(maxPages: number = 0, listName: string) {
     this.list = [];
     this.maxPages = maxPages;
+    this.listName = listName;
     this.index = 0;
   }
 
   add(result: any): sa.SuperAgentRequest {
     let nextRequest: sa.SuperAgentRequest = null;
-    this.list.push(...result.body.values);
-    let nextPage = result.body.next;
+    const body = result.body;
+    const values = body[this.listName];
+    this.list.push(...values);
+    let nextPage = result.body.nextPage;
+    // console.log(result.body);
     this.index += 1;
     const useMaxPages = this.maxPages > 0;
     if (nextPage && (!useMaxPages || this.index < this.maxPages)) {
@@ -113,6 +117,7 @@ export class Jira {
   config: Config;
   manager: ResourceManager;
   JiraCloud: rm.IServer;
+
   constructor(config: Config, options: rm.IManagerOptions) {
     this.config = config;
     this.manager = new ResourceManager(options);
@@ -120,8 +125,8 @@ export class Jira {
     this.manager.registerServer('jira-cloud', this.JiraCloud);
   }
 
-  jsonList(maxPages: number = 0) {
-    return new JsonListHandler(maxPages);
+  jsonList(maxPages: number = 0, listName: string = 'values') {
+    return new JsonListHandler(maxPages, listName);
   }
 
   json() {
@@ -144,83 +149,52 @@ export class Jira {
       resourceParts[1] = workspaceUuid;
       resourceParts[2] = repoUuid;
     }
-    return await this.get(handler, ...resourceParts);
+    return await this.get(handler, new Map(), ...resourceParts);
   }
 
-  async get<T>(handler: rm.IDataHandler<T>, ...id: string[]) {
+  async get<T>(handler: rm.IDataHandler<T>, parameters: rm.Parameters, ...id: string[]) {
     let resource: rm.IResource = {
       server: 'jira-cloud',
       id: id,
+      parameters: parameters,
     };
     return await this.manager.get(resource, handler);
   }
 
   async getUser() {
-    return await this.get(this.json(), 'myself');
+    return await this.get(this.json(), new Map(), 'myself');
   }
 
   async getIssue(issue: string) {
-    return await this.get(this.json(), 'issue', issue);
+    return await this.get(this.json(), new Map(), 'issue', issue);
+  }
+
+  async searchProjects(parameters: rm.Parameters) {
+    return await this.get(this.jsonList(), parameters, 'project', 'search');
+  }
+
+  async searchIssues(parameters: rm.Parameters) {
+    return await this.get(this.jsonList(0, 'issues'), parameters, 'search');
   }
 
   async getPullrequests(user: string) {
-    return await this.get(this.jsonList(), 'pullrequests', user);
+    return await this.get(this.jsonList(), new Map(), 'pullrequests', user);
   }
 
   async getWorkspaces() {
-    return await this.get(this.jsonList(), 'workspaces');
+    return await this.get(this.jsonList(), new Map(), 'workspaces');
   }
 
   async getMembers(workspace: string) {
-    return await this.get(this.jsonList(), 'workspaces', workspace, 'members');
+    return await this.get(this.jsonList(), new Map(), 'workspaces', workspace, 'members');
   }
 
   async getPublicRepositories() {
-    return await this.get(this.jsonList(), 'repositories');
+    return await this.get(this.jsonList(), new Map(), 'repositories');
   }
 
   async getRepositories(workspace: string) {
-    return await this.get(this.jsonList(), 'repositories', workspace);
-  }
-
-  async getRepositorySrc(repo: IRepositoryPath, maxPages: number, ...filePath: string[]) {
-    return await this.get(
-      this.jsonList(maxPages),
-      'repositories',
-      repo.workspace,
-      repo.repository,
-      'src',
-      ...filePath
-    );
-  }
-
-  async findRepositoryInWorkspace(repository: string, workspace: any): Promise<any> {
-    let repositories = await this.getRepositories(workspace.uuid);
-    let repoId = repository.toLowerCase();
-    for (let repo of repositories) {
-      if (
-        repo.full_name.toLowerCase() === repoId ||
-        repo.name.toLowerCase() === repoId ||
-        repo.uuid === repoId
-      ) {
-        return repo;
-      }
-    }
-    return null;
-  }
-
-  async findRepository(repository: string): Promise<any> {
-    let workspaces = await this.getWorkspaces();
-    let repoId = repository.toLowerCase();
-    for (let workspace of workspaces) {
-      let repositories = await this.getRepositories(workspace.uuid);
-      for (let repo of repositories) {
-        if (repo.full_name.toLowerCase() === repoId || repo.uuid === repoId) {
-          return repo;
-        }
-      }
-    }
-    return null;
+    return await this.get(this.jsonList(), new Map(), 'repositories', workspace);
   }
 
   async findWorkspace(workspace: string): Promise<any> {

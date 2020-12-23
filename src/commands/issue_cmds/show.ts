@@ -5,7 +5,6 @@ import tkit from 'terminal-kit';
 const terminal = tkit.terminal;
 
 exports.command = 'show <issue>';
-exports.aliases = ['$0'];
 exports.desc = 'Show issue info';
 exports.builder = (yargs: yargs.Argv<{}>) => {
   return yargs.positional('issue', {
@@ -42,4 +41,3 @@ exports.handler = async (argv: any) => {
   terminal(`Description: ${description}\n`);
   process.exit();
 };
-

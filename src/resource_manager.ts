@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import sa from 'superagent';
 import tkit from 'terminal-kit';
 
@@ -25,9 +26,32 @@ export interface IDataHandler<T> {
 }
 
 export type ResourceId = string[];
+export type Parameters = Map<String, String>;
+
 export interface IResource {
   server: string;
   id: ResourceId;
+  parameters: Parameters;
+}
+
+const sha1 = (x) => crypto.createHash('sha1').update(x, 'utf8').digest('hex');
+
+function getParametersString(parameters: Parameters) {
+  const keyValues = Array.from(parameters.entries());
+  let sorter = (a: [string, string], b: [string, string]) => a[0].localeCompare(b[0]);
+  keyValues.sort(sorter);
+  const combined = keyValues.map((x) => `${x[0]}=${x[1]}`).join('|');
+  return combined;
+}
+
+function resourceString(resource: IResource) {
+  const resourcePath = resource.id.join('/');
+  const parameters = getParametersString(resource.parameters);
+  const hash = sha1(parameters);
+  const fullResource = `${resourcePath}_${hash}`;
+  // console.log(hash);
+  // console.log(fullResource);
+  return fullResource;
 }
 
 export default class ResourceManager {
@@ -83,15 +107,22 @@ export default class ResourceManager {
     const completePath = resource.id.join('/');
     const url = `${server.url}${completePath}/`;
     const serverId = resource.server;
-    let request = sa.get(url);
+    let request = sa.get(url).query(Object.fromEntries(resource.parameters));
     while (request) {
       request = server.setAuthorization(request);
-      this.options.verbose && terminal.green(`${serverId}: fetching ${request.url}\n`);
+      if (this.options.verbose) {
+        const parameters = getParametersString(resource.parameters);
+        terminal.green(`${serverId}: fetching ${request.url} (${parameters})\n`);
+      }
       let result = null;
       try {
         result = await request;
       } catch (error) {
-        terminal.red.error(`${error.status} ${error.response?.text}\n`);
+        if (error.code || error.errno) {
+          terminal.red.error(`${error.code} ${error.errno}\n`);
+        } else if (error.status) {
+          terminal.red.error(`${error.status} ${error.response?.text}\n`);
+        }
         return null;
       }
       request = handler.add(result);
@@ -100,7 +131,7 @@ export default class ResourceManager {
   }
 
   async get<T>(resource: IResource, handler: IDataHandler<T>): Promise<T> {
-    const resourceStr = resource.id.join('/');
+    const resourceStr = resourceString(resource);
     let result: T = this.resources.get(resourceStr);
     if (result) {
       this.options.verbose && terminal.green(`rm: ${resourceStr} found\n`);
