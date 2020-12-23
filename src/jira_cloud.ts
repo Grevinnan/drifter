@@ -201,6 +201,10 @@ export class Jira {
     return await this.get(this.json(), 'myself');
   }
 
+  async getIssue(issue: string) {
+    return await this.get(this.json(), 'issue', issue);
+  }
+
   async getPullrequests(user: string) {
     return await this.get(this.jsonList(), 'pullrequests', user);
   }

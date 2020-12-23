@@ -40,7 +40,8 @@
   ],
   "name": "drifter",
   "scripts": {
-    "start": "nodemon --watch 'src/**/*.ts' --exec 'ts-node' src/drifter.ts",
+    "start": "tsc && chmod +x bin/drifter.js && bin/drifter.js",
+    "watch_build": "tsc --watch",
     "build": "tsc"
   },
   "_moduleAliases": {
