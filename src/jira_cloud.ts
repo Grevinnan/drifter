@@ -38,31 +38,14 @@ class JiraCloud implements rm.IServer {
   }
 }
 
-class JsonListHandler<U = any> implements rm.IDataHandler<U[]> {
+class BaseJsonListHandler<U = any> implements rm.IDataHandler<U[]> {
   list: U[];
-  maxPages: number;
-  listName: string;
-  index: number;
-  constructor(maxPages: number = 0, listName: string) {
+  constructor() {
     this.list = [];
-    this.maxPages = maxPages;
-    this.listName = listName;
-    this.index = 0;
   }
 
-  add(result: any): sa.SuperAgentRequest {
-    let nextRequest: sa.SuperAgentRequest = null;
-    const body = result.body;
-    const values = body[this.listName];
-    this.list.push(...values);
-    let nextPage = result.body.nextPage;
-    // console.log(result.body);
-    this.index += 1;
-    const useMaxPages = this.maxPages > 0;
-    if (nextPage && (!useMaxPages || this.index < this.maxPages)) {
-      nextRequest = sa.get(nextPage);
-    }
-    return nextRequest;
+  add(result: any): rm.IRequest {
+    return null;
   }
 
   get(): U[] {
@@ -83,13 +66,71 @@ class JsonListHandler<U = any> implements rm.IDataHandler<U[]> {
   }
 }
 
+class JsonListHandler<U = any> extends BaseJsonListHandler<U> {
+  maxPages: number;
+  listName: string;
+  index: number;
+  constructor(maxPages: number = 0, listName: string) {
+    super();
+    this.maxPages = maxPages;
+    this.listName = listName;
+    this.index = 0;
+  }
+
+  add(result: any): rm.IRequest {
+    let nextRequest: sa.SuperAgentRequest = null;
+    const body = result.body;
+    const values = body[this.listName];
+    this.list.push(...values);
+    let nextPage = result.body.nextPage;
+    // console.log(result.body);
+    this.index += 1;
+    const useMaxPages = this.maxPages > 0;
+    if (nextPage && (!useMaxPages || this.index < this.maxPages)) {
+      nextRequest = sa.get(nextPage);
+    }
+    return { request: nextRequest, repeat: false, queries: null };
+  }
+}
+
+class IssueListHandler<U = any> extends BaseJsonListHandler<U> {
+  numIssues: number;
+  issueCount: number;
+  constructor(numIssues: number = 0) {
+    super();
+    this.numIssues = numIssues;
+    this.issueCount = 0;
+  }
+
+  add(result: any): rm.IRequest {
+    let nextRequest: sa.SuperAgentRequest = null;
+    let repeat: boolean = false;
+    let queries: rm.Parameters = new Map<String, String>();
+    const body = result.body;
+    const issues = body['issues'];
+    this.numIssues = Math.min(this.numIssues, body.total);
+    // console.log(this.numIssues);
+    this.list.push(...issues);
+    // console.log(this.list.length);
+    if (this.list.length < this.numIssues) {
+      repeat = true;
+      const remainingIssues = this.numIssues - this.list.length;
+      queries.set('startAt', this.list.length.toString());
+      queries.set('maxResults', remainingIssues.toString());
+      // console.log(remainingIssues);
+      // console.log(queries);
+    }
+    return { request: nextRequest, repeat: repeat, queries: queries };
+  }
+}
+
 class JsonHandler<U = any> implements rm.IDataHandler<U> {
   json: U;
   constructor() {
     this.json = null;
   }
 
-  add(result: any): sa.SuperAgentRequest {
+  add(result: any): rm.IRequest {
     this.json = result.body;
     return null;
   }
@@ -127,6 +168,10 @@ export class Jira {
 
   jsonList(maxPages: number = 0, listName: string = 'values') {
     return new JsonListHandler(maxPages, listName);
+  }
+
+  issueList(numIssues: number) {
+    return new IssueListHandler(numIssues);
   }
 
   json() {
@@ -173,8 +218,8 @@ export class Jira {
     return await this.get(this.jsonList(), parameters, 'project', 'search');
   }
 
-  async searchIssues(parameters: rm.Parameters) {
-    return await this.get(this.jsonList(0, 'issues'), parameters, 'search');
+  async searchIssues(parameters: rm.Parameters, numIssues: number) {
+    return await this.get(this.issueList(numIssues), parameters, 'search');
   }
 
   async getPullrequests(user: string) {

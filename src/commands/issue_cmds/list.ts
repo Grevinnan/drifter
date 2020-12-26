@@ -26,6 +26,12 @@ exports.builder = (yargs: yargs.Argv<{}>) => {
       type: 'string',
       description: 'Status',
       default: null,
+    })
+    .option('m', {
+      alias: 'max_entries',
+      type: 'number',
+      description: 'Maximum number of issues',
+      default: 20,
     });
 };
 
@@ -45,7 +51,8 @@ exports.handler = async (argv: any) => {
   }
   jql = jql + ' ORDER BY created DESC';
   parameters.set('jql', jql);
-  let issues = await jira.searchIssues(parameters);
+  parameters.set('maxResults', argv.max_entries);
+  let issues = await jira.searchIssues(parameters, argv.max_entries);
   if (!issues) {
     terminal.error.red('Could not get issues\n');
     process.exit(1);

@@ -17,8 +17,16 @@ export interface IServer {
   setAuthorization(request: sa.SuperAgentRequest): sa.SuperAgentRequest;
 }
 
+export type Parameters = Map<String, String>;
+
+export interface IRequest {
+  request: sa.SuperAgentRequest;
+  repeat: boolean;
+  queries: Parameters;
+}
+
 export interface IDataHandler<T> {
-  add(data: any): sa.SuperAgentRequest;
+  add(data: any): IRequest;
   get(): T;
   serialize(data: T): string;
   deserialize(data: string): T;
@@ -26,7 +34,6 @@ export interface IDataHandler<T> {
 }
 
 export type ResourceId = string[];
-export type Parameters = Map<String, String>;
 
 export interface IResource {
   server: string;
@@ -107,16 +114,21 @@ export default class ResourceManager {
     const completePath = resource.id.join('/');
     const url = `${server.url}${completePath}/`;
     const serverId = resource.server;
-    let request = sa.get(url).query(Object.fromEntries(resource.parameters));
-    while (request) {
-      request = server.setAuthorization(request);
+    let currentQueries = resource.parameters;
+    let r: IRequest = {
+      request: sa.get(url).query(Object.fromEntries(currentQueries)),
+      repeat: false,
+      queries: null,
+    };
+    while (r.request) {
+      r.request = server.setAuthorization(r.request);
       if (this.options.verbose) {
-        const parameters = getParametersString(resource.parameters);
-        terminal.green(`${serverId}: fetching ${request.url} (${parameters})\n`);
+        const parameters = getParametersString(currentQueries);
+        terminal.green(`${serverId}: fetching ${r.request.url} (${parameters})\n`);
       }
       let result = null;
       try {
-        result = await request;
+        result = await r.request;
       } catch (error) {
         if (error.code || error.errno) {
           terminal.red.error(`${error.code} ${error.errno}\n`);
@@ -125,7 +137,16 @@ export default class ResourceManager {
         }
         return null;
       }
-      request = handler.add(result);
+      r = handler.add(result);
+      if (r && r.repeat) {
+        let newQueries = new Map<String, String>();
+        if (r.queries) {
+          newQueries = r.queries;
+        }
+        const repeatQueries = new Map<String, String>([...currentQueries, ...newQueries]);
+        r.request = sa.get(url).query(Object.fromEntries(repeatQueries));
+        currentQueries = repeatQueries;
+      }
     }
     return handler.get();
   }
