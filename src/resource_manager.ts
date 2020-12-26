@@ -120,7 +120,7 @@ export default class ResourceManager {
       repeat: false,
       queries: null,
     };
-    while (r.request) {
+    while (r && r.request) {
       r.request = server.setAuthorization(r.request);
       if (this.options.verbose) {
         const parameters = getParametersString(currentQueries);
