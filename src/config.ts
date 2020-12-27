@@ -6,9 +6,10 @@ import * as tu from './terminal_util';
 
 const terminal = tkit.terminal;
 
-export interface IAuth {
+export interface IServer {
+  url: string;
   username: string;
-  password: string;
+  authorization: string;
 }
 
 export interface ICacheOptions {}
@@ -20,21 +21,21 @@ export interface IOptions {
 export default class Config {
   configDirectory: string;
   configPath: string;
-  auth: IAuth;
+  server: IServer;
   options: IOptions;
   reviewers?: any;
 
   constructor() {
     this.configDirectory = getXdgDirectory('config', true);
     this.configPath = path.join(this.configDirectory, 'config.json');
-    this.auth = null;
+    this.server = null;
     this.options = {};
   }
 
   checkConfig(): boolean {
     if (fs.existsSync(this.configPath)) {
       let configObject = JSON.parse(fs.readFileSync(this.configPath, 'utf-8'));
-      this.auth = configObject.auth;
+      this.server = configObject.server;
       this.reviewers = configObject.reviewers;
       return true;
     } else {
@@ -53,18 +54,19 @@ export default class Config {
         return false;
       }
       // First create the configuration directory
-      terminal('Please enter your username: ');
+      terminal('Please enter the JIRA server URL: ');
+      let url = await terminal.inputField({}).promise;
+      terminal('\nPlease enter your username: ');
       let username = await terminal.inputField({}).promise;
-      terminal(
-        '\nPlease enter your API key (not password, see documentation): '
-      );
-      let password = await terminal.inputField({}).promise;
-      this.auth = {
+      terminal('\nPlease enter your API key (not password, see documentation): ');
+      let apiKey = await terminal.inputField({}).promise;
+      this.server = {
+        url: url,
         username: username,
-        password: Buffer.from(`${username}:${password}`).toString('base64'),
+        authorization: Buffer.from(`${username}:${apiKey}`).toString('base64'),
       };
       let configData = {
-        auth: this.auth,
+        server: this.server,
         options: {},
       };
       fs.writeFileSync(this.configPath, JSON.stringify(configData, null, 4));

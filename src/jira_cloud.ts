@@ -1,6 +1,6 @@
 import Config from './config';
 import ResourceManager, * as rm from './resource_manager';
-import { IAuth } from './config';
+import { IServer } from './config';
 import sa from 'superagent';
 
 import tkit from 'terminal-kit';
@@ -21,19 +21,18 @@ const JIRACloudCacheFilter: rm.ResourceId[] = [
 ];
 
 class JiraCloud implements rm.IServer {
-  auth: IAuth;
+  server: IServer;
   url: string;
   cachePaths: rm.ResourceId[];
-  constructor(auth: IAuth) {
-    this.auth = auth;
-    // TODO: Add configuration for domain
-    this.url = 'https://domain.atlassian.net/rest/api/3/';
+  constructor(server: IServer) {
+    this.server = server;
+    this.url = server.url;
     this.cachePaths = JIRACloudCacheFilter;
   }
   setAuthorization(request: sa.SuperAgentRequest): sa.SuperAgentRequest {
     request
       .set('Content-Type', 'application/json')
-      .set('Authorization', `Basic ${this.auth.password}`);
+      .set('Authorization', `Basic ${this.server.authorization}`);
     return request;
   }
 }
@@ -108,7 +107,11 @@ class IssueListHandler<U = any> extends BaseJsonListHandler<U> {
     let queries: rm.Parameters = new Map<String, String>();
     const body = result.body;
     const issues = body['issues'];
-    this.numIssues = Math.min(this.numIssues, body.total);
+    if (this.numIssues > 0) {
+      this.numIssues = Math.min(this.numIssues, body.total);
+    } else {
+      this.numIssues = body.total;
+    }
     // console.log(this.numIssues);
     this.list.push(...issues);
     // console.log(this.list.length);
@@ -162,7 +165,7 @@ export class Jira {
   constructor(config: Config, options: rm.IManagerOptions) {
     this.config = config;
     this.manager = new ResourceManager(options);
-    this.JiraCloud = new JiraCloud(config.auth);
+    this.JiraCloud = new JiraCloud(config.server);
     this.manager.registerServer('jira-cloud', this.JiraCloud);
   }
 

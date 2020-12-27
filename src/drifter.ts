@@ -30,7 +30,7 @@ const base = yargs
     description: 'Verbose output',
     default: false,
   })
-  .option('s', {
+  .option('f', {
     alias: 'force-synchronization',
     type: 'boolean',
     description: 'Will force synchronization with the server',

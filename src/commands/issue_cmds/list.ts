@@ -5,7 +5,6 @@ import tkit from 'terminal-kit';
 const terminal = tkit.terminal;
 
 exports.command = 'list';
-exports.aliases = ['$0'];
 exports.desc = 'List projects';
 exports.builder = (yargs: yargs.Argv<{}>) => {
   return yargs

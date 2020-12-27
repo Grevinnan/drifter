@@ -27,17 +27,37 @@ exports.handler = async (argv: any) => {
   const type = fields.issuetype.name;
   const status = fields.status.name;
   const assignee = fields.assignee;
+  const creator = fields.creator;
+  const reporter = fields.reporter;
   let assigneeName = 'Unassigned';
   if (assignee) {
-    assigneeName = fields.assignee.displayName;
+    assigneeName = assignee.displayName;
+  }
+  let creatorName = null;
+  if (creator) {
+    creatorName = creator.displayName;
+  }
+  let reporterName = null;
+  if (reporter) {
+    reporterName = reporter.displayName;
   }
   const summary = fields.summary;
   const description = fields.description;
+  // console.log(description.content);
+  const fullDescription = description.content
+    .map((x: any) => x.content.map((x: any) => x.text).join('\n'))
+    .join('\n');
   terminal(`Key: ${key}\n`);
   terminal(`Summary: ${summary}\n`);
   terminal(`Type: ${type}\n`);
   terminal(`Status: ${status}\n`);
   terminal(`Assignee: ${assigneeName}\n`);
-  terminal(`Description: ${description}\n`);
+  if (creatorName) {
+    terminal(`Creator: ${creatorName}\n`);
+  }
+  if (reporterName) {
+    terminal(`Reporter: ${reporterName}\n`);
+  }
+  terminal(`Description: ${fullDescription}\n`);
   process.exit();
 };
