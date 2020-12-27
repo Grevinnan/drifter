@@ -60,7 +60,7 @@ exports.handler = async (argv: any) => {
   // console.log(issues);
   let issueSummary = issues.map((x) => [x.key, x.fields.status.name, x.fields.summary]);
   for (let n of issueSummary) {
-    terminal(`${n[0]} "${n[1]}" ${n[2]}\n`);
+    terminal(`^g${n[0]}^: ^y"${n[1]}"^: ${n[2]}\n`);
   }
 
   process.exit();
