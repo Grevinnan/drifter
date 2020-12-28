@@ -65,6 +65,37 @@ class BaseJsonListHandler<U = any> implements rm.IDataHandler<U[]> {
   }
 }
 
+class StatusHandler implements rm.IDataHandler<number> {
+  statusCode: number;
+  constructor() {
+    this.statusCode = null;
+  }
+
+  add(result: any): rm.IRequest {
+    if (result.statusCode) {
+      this.statusCode = result.statusCode;
+    }
+    return null;
+  }
+
+  get(): number {
+    return this.statusCode;
+  }
+
+  serialize(data: number): string {
+    return data.toString();
+  }
+
+  deserialize(data: string): number {
+    // TODO: catch errors
+    return parseInt(data);
+  }
+
+  getCacheName(): string {
+    return 'data.txt';
+  }
+}
+
 class JsonListHandler<U = any> extends BaseJsonListHandler<U> {
   maxPages: number;
   listName: string;
@@ -181,6 +212,10 @@ export class Jira {
     return new JsonHandler();
   }
 
+  status() {
+    return new StatusHandler();
+  }
+
   async getFromUrl<T>(
     url: string,
     workspaceUuid: string,
@@ -205,8 +240,19 @@ export class Jira {
       server: 'jira-cloud',
       id: id,
       parameters: parameters,
+      data: null,
     };
     return await this.manager.get(resource, handler);
+  }
+
+  async post<T>(handler: rm.IDataHandler<T>, data: any, parameters: rm.Parameters, ...id: string[]) {
+    let resource: rm.IResource = {
+      server: 'jira-cloud',
+      id: id,
+      parameters: parameters,
+      data: data,
+    };
+    return await this.manager.post(resource, handler);
   }
 
   async getUser() {
@@ -215,6 +261,14 @@ export class Jira {
 
   async getIssue(issue: string) {
     return await this.get(this.json(), new Map(), 'issue', issue);
+  }
+
+  async getTransitions(issue: string, parameters: rm.Parameters) {
+    return await this.get(this.json(), parameters, 'issue', issue, 'transitions');
+  }
+
+  async postTransition(issue: string, data: any) {
+    return await this.post(this.status(), data, new Map(), 'issue', issue, 'transitions');
   }
 
   async searchProjects(parameters: rm.Parameters) {

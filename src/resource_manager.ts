@@ -39,6 +39,7 @@ export interface IResource {
   server: string;
   id: ResourceId;
   parameters: Parameters;
+  data: any;
 }
 
 const sha1 = (x) => crypto.createHash('sha1').update(x, 'utf8').digest('hex');
@@ -110,21 +111,30 @@ export default class ResourceManager {
     return false;
   }
 
-  async fetch<T>(resource: IResource, server: IServer, handler: IDataHandler<T>) {
+  async interact<T>(
+    resource: IResource,
+    server: IServer,
+    method: string,
+    handler: IDataHandler<T>
+  ) {
     const completePath = resource.id.join('/');
     const url = `${server.url}${completePath}/`;
     const serverId = resource.server;
     let currentQueries = resource.parameters;
     let r: IRequest = {
-      request: sa.get(url).query(Object.fromEntries(currentQueries)),
+      request: sa(method, url).query(Object.fromEntries(currentQueries)),
       repeat: false,
       queries: null,
     };
+    if (resource.data) {
+      r.request.send(resource.data);
+    }
+    // console.log(r.request);
     while (r && r.request) {
       r.request = server.setAuthorization(r.request);
       if (this.options.verbose) {
         const parameters = getParametersString(currentQueries);
-        terminal.green(`${serverId}: fetching ${r.request.url} (${parameters})\n`);
+        terminal.green(`${serverId}: ${method} ${r.request.url} (${parameters})\n`);
       }
       let result = null;
       try {
@@ -144,7 +154,10 @@ export default class ResourceManager {
           newQueries = r.queries;
         }
         const repeatQueries = new Map<String, String>([...currentQueries, ...newQueries]);
-        r.request = sa.get(url).query(Object.fromEntries(repeatQueries));
+        r.request = sa(method, url).query(Object.fromEntries(repeatQueries));
+        if (resource.data) {
+          r.request.send(resource.data);
+        }
         currentQueries = repeatQueries;
       }
     }
@@ -172,16 +185,39 @@ export default class ResourceManager {
     }
     // Otherwise just try to get it from the server
     if (!result) {
-      result = await this.fetch(resource, server, handler);
+      result = await this.interact(resource, server, 'GET', handler);
       if (!result) {
         this.options.verbose &&
-          terminal.error(`Could not get ${resource.id.join('/')}, aborting.\n`);
+          terminal.error(`Could not GET ${resource.id.join('/')}, aborting.\n`);
         return null;
       }
       if (isFiltered) {
         this.cache.saveResource(resource.id, handler.serialize(result), filename);
       }
     }
+    this.resources.set(resourceStr, result);
+    return result;
+  }
+
+  async post<T>(resource: IResource, handler: IDataHandler<T>): Promise<T> {
+    const resourceStr = resourceString(resource);
+    let result: T = null;
+    if (result) {
+      this.options.verbose && terminal.green(`rm: ${resourceStr} found\n`);
+      return result;
+    }
+    let server = this.servers.get(resource.server);
+    if (!server) {
+      terminal.error(`No server ${resource.server} registered\n`);
+      return result;
+    }
+    result = await this.interact(resource, server, 'POST', handler);
+    if (!result) {
+      this.options.verbose &&
+        terminal.error(`Could not POST ${resource.id.join('/')}, aborting.\n`);
+      return null;
+    }
+    // TODO: Not sure about this
     this.resources.set(resourceStr, result);
     return result;
   }
