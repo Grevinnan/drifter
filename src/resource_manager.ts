@@ -42,7 +42,7 @@ export interface IResource {
   data: any;
 }
 
-const sha1 = (x) => crypto.createHash('sha1').update(x, 'utf8').digest('hex');
+const sha1 = (x: string) => crypto.createHash('sha1').update(x, 'utf8').digest('hex');
 
 function getParametersString(parameters: Parameters) {
   const keyValues = Array.from(parameters.entries());
@@ -52,13 +52,15 @@ function getParametersString(parameters: Parameters) {
   return combined;
 }
 
-function resourceString(resource: IResource) {
+function getHash(parameters: Parameters) {
+  const parameterStr = getParametersString(parameters);
+  const hash = sha1(parameterStr);
+  return hash;
+}
+
+function getResourcePath(resource: IResource, hash: string) {
   const resourcePath = resource.id.join('/');
-  const parameters = getParametersString(resource.parameters);
-  const hash = sha1(parameters);
   const fullResource = `${resourcePath}_${hash}`;
-  // console.log(hash);
-  // console.log(fullResource);
   return fullResource;
 }
 
@@ -78,7 +80,7 @@ export default class ResourceManager {
     this.servers.set(name, data);
   }
 
-  isFiltered(resource: ResourceId, server: IServer) {
+  isCachable(resource: ResourceId, server: IServer) {
     for (let filter of server.cachePaths) {
       let matched = true;
       let i = 0;
@@ -165,7 +167,8 @@ export default class ResourceManager {
   }
 
   async get<T>(resource: IResource, handler: IDataHandler<T>): Promise<T> {
-    const resourceStr = resourceString(resource);
+    const hash = getHash(resource.parameters);
+    const resourceStr = getResourcePath(resource, hash);
     let result: T = this.resources.get(resourceStr);
     if (result) {
       this.options.verbose && terminal.green(`rm: ${resourceStr} found\n`);
@@ -178,10 +181,12 @@ export default class ResourceManager {
       return result;
     }
     // Try to get the resource from the cache if applicable
-    const isFiltered = this.isFiltered(resource.id, server);
-    if (!this.options.forceSynchronize && isFiltered) {
-      this.options.verbose && terminal.yellow(`rm: filtered ${resourceStr}\n`);
-      result = handler.deserialize(await this.cache.getResource(resource.id, filename));
+    const useCache = this.isCachable(resource.id, server);
+    if (!this.options.forceSynchronize && useCache) {
+      this.options.verbose && terminal.yellow(`rm: trying to load ${resourceStr}\n`);
+      result = handler.deserialize(
+        await this.cache.getResource(resource.id, hash, filename)
+      );
     }
     // Otherwise just try to get it from the server
     if (!result) {
@@ -191,8 +196,8 @@ export default class ResourceManager {
           terminal.error(`Could not GET ${resource.id.join('/')}, aborting.\n`);
         return null;
       }
-      if (isFiltered) {
-        this.cache.saveResource(resource.id, handler.serialize(result), filename);
+      if (useCache) {
+        this.cache.saveResource(resource.id, hash, handler.serialize(result), filename);
       }
     }
     this.resources.set(resourceStr, result);
@@ -200,12 +205,7 @@ export default class ResourceManager {
   }
 
   async post<T>(resource: IResource, handler: IDataHandler<T>): Promise<T> {
-    const resourceStr = resourceString(resource);
     let result: T = null;
-    if (result) {
-      this.options.verbose && terminal.green(`rm: ${resourceStr} found\n`);
-      return result;
-    }
     let server = this.servers.get(resource.server);
     if (!server) {
       terminal.error(`No server ${resource.server} registered\n`);
@@ -217,8 +217,6 @@ export default class ResourceManager {
         terminal.error(`Could not POST ${resource.id.join('/')}, aborting.\n`);
       return null;
     }
-    // TODO: Not sure about this
-    this.resources.set(resourceStr, result);
     return result;
   }
 }

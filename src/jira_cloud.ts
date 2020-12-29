@@ -13,7 +13,7 @@ export interface IRepositoryPath {
 
 const JIRACloudCacheFilter: rm.ResourceId[] = [
   // TODO
-  // ['myself'],
+  ['resolution'],
   // ['workspaces'],
   // ['workspaces', '*', 'members'],
   // ['repositories', '*'],
@@ -269,6 +269,10 @@ export class Jira {
 
   async postTransition(issue: string, data: any) {
     return await this.post(this.status(), data, new Map(), 'issue', issue, 'transitions');
+  }
+
+  async getResolutions() {
+    return await this.get(this.json(), new Map(), 'resolution');
   }
 
   async searchProjects(parameters: rm.Parameters) {

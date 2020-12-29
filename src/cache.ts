@@ -21,10 +21,10 @@ export default class Cache {
     this.verbose = verbose;
   }
 
-  getCachePath(pathParts: string[]): string {
+  getCachePath(pathParts: string[], hash: string): string {
     let paths: string[] = [];
     pathParts.slice(0, -1).forEach((p) => paths.push(p, 'a'));
-    paths.push(pathParts[pathParts.length - 1]);
+    paths.push(`${pathParts[pathParts.length - 1]}_${hash}`);
     return path.join(this.cacheDirectory, ...paths);
   }
 
@@ -41,8 +41,8 @@ export default class Cache {
     }
   }
 
-  async getResource(pathParts: string[], filename: string): Promise<any> {
-    let cachePath = this.getCachePath(pathParts);
+  async getResource(pathParts: string[], hash: string, filename: string): Promise<any> {
+    let cachePath = this.getCachePath(pathParts, hash);
     if (!fs.existsSync(cachePath)) {
       this.verbose && terminal(`cache: ${cachePath} does not exist\n`);
       return null;
@@ -70,10 +70,11 @@ export default class Cache {
 
   async saveResource(
     pathParts: string[],
+    hash: string,
     data: string,
     filename: string
   ): Promise<boolean> {
-    let cachePath = this.getCachePath(pathParts);
+    let cachePath = this.getCachePath(pathParts, hash);
     if (!fs.existsSync(cachePath)) {
       fs.mkdirSync(cachePath, { recursive: true });
       this.verbose && terminal(`cache: ${cachePath} created\n`);
