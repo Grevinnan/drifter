@@ -5,6 +5,7 @@ import tkit from 'terminal-kit';
 const terminal = tkit.terminal;
 
 exports.command = 'show <issue>';
+exports.aliases = ['s'];
 exports.desc = 'Show issue info';
 exports.builder = (yargs: yargs.Argv<{}>) => {
   return yargs.positional('issue', {
@@ -22,10 +23,12 @@ exports.handler = async (argv: any) => {
     process.exit(1);
   }
   // console.log(issue);
+  // process.exit(0);
   const key = issue.key;
   const fields = issue.fields;
   const type = fields.issuetype.name;
   const status = fields.status.name;
+  const resolution = fields.resolution;
   const assignee = fields.assignee;
   const creator = fields.creator;
   const reporter = fields.reporter;
@@ -43,14 +46,19 @@ exports.handler = async (argv: any) => {
   }
   const summary = fields.summary;
   const description = fields.description;
-  // console.log(description.content);
-  const fullDescription = description.content
-    .map((x: any) => x.content.map((x: any) => x.text).join('\n'))
-    .join('\n');
+  let fullDescription = null;
+  if (description) {
+    fullDescription = description.content
+      .map((x: any) => x.content.map((x: any) => x.text).join('\n'))
+      .join('\n');
+  }
   terminal(`Key: ${key}\n`);
   terminal(`Summary: ${summary}\n`);
   terminal(`Type: ${type}\n`);
   terminal(`Status: ${status}\n`);
+  if (resolution) {
+    terminal(`Resolution: ${resolution.name}\n`);
+  }
   terminal(`Assignee: ${assigneeName}\n`);
   if (creatorName) {
     terminal(`Creator: ${creatorName}\n`);
@@ -58,6 +66,8 @@ exports.handler = async (argv: any) => {
   if (reporterName) {
     terminal(`Reporter: ${reporterName}\n`);
   }
-  terminal(`Description: ${fullDescription}\n`);
+  if (fullDescription) {
+    terminal(`Description: ${fullDescription}\n`);
+  }
   process.exit();
 };

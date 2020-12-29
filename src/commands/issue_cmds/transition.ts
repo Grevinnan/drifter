@@ -5,19 +5,30 @@ import getJira, * as jirac from '../../jira_cloud';
 import tkit from 'terminal-kit';
 const terminal = tkit.terminal;
 
-exports.command = 'transition <issue> [state]';
+exports.command = 'transition [issue] [state]';
 exports.aliases = ['t'];
 exports.desc = 'Show issue info';
 exports.builder = (yargs: yargs.Argv<{}>) => {
   return yargs
     .positional('issue', {
-      describe: 'Issue key/ID',
+      describe: 'Issue key/ID, required if none of the list-options are used',
       type: 'string',
       default: '',
     })
     .positional('state', {
       describe: 'Issue state',
       type: 'string',
+      default: null,
+    })
+    .option('r', {
+      alias: 'resolution',
+      type: 'string',
+      description: 'Resolution of issue',
+      default: null,
+    })
+    .option('list-resolutions', {
+      type: 'boolean',
+      description: 'Will list all possible resolutions',
       default: null,
     });
 };
@@ -33,8 +44,43 @@ function printTransitions(currentStatus: string, availableTransitions: any[]) {
   }
 }
 
+async function handleResolution(jira: jirac.Jira, argv: any, transition: any) {
+  let resolutions = await jira.getResolutions();
+  if (!resolutions) {
+    terminal.error.red('Could not get resolutions\n');
+    process.exit(1);
+  }
+  let names = resolutions.map((x: any) => x.name);
+  const resolutionName = argv.resolution.toLowerCase();
+  let resolution = _.find(names, (x) => x.toLowerCase() === resolutionName);
+  if (!resolution) {
+    terminal.error(`Could not find resolution ^r${argv.resolution}\n`);
+    process.exit(1);
+  }
+  const fullName = resolution;
+  transition.fields['resolution'] = { name: fullName };
+}
+
 exports.handler = async (argv: any) => {
   let jira = await getJira(argv);
+  if (argv['list-resolutions']) {
+    let resolutions = await jira.getResolutions();
+    if (!resolutions) {
+      terminal.error.red('Could not get resolutions\n');
+      process.exit(1);
+    }
+    let names = resolutions.map((x: any) => x.name);
+    for (let n of names) {
+      terminal(`^g${n}^:\n`);
+    }
+    process.exit();
+  }
+
+  if (!argv.issue) {
+    terminal.error.red('Issue key/ID is required\n');
+    process.exit(1);
+  }
+
   let parameters = new Map<String, String>();
   parameters.set('expand', 'transitions');
   let transitions = await jira.getTransitions(argv.issue, parameters);
@@ -49,6 +95,8 @@ exports.handler = async (argv: any) => {
   }
   let currentStatus = issue.fields.status.name;
 
+  // console.log(transitions);
+  // process.exit(0);
   let availableTransitions = transitions.transitions.map((x: any) => [
     x.id,
     x.name,
@@ -69,13 +117,22 @@ exports.handler = async (argv: any) => {
       process.exit(1);
     }
     const transitionObj = {
+      fields: {},
       transition: {
         id: transition[0],
       },
     };
-    const transitionResult = await jira.postTransition(argv.issue, transitionObj)
+    if (argv.resolution) {
+      await handleResolution(jira, argv, transitionObj);
+    }
+    // console.log(transitionObj);
+    const transitionResult = await jira.postTransition(argv.issue, transitionObj);
     if (transitionResult === 204) {
       terminal(`^b${argv.issue}^: set to ^g"${transition[1]}"^:\n`);
+      let fieldKeys = Object.keys(transitionObj.fields);
+      for (let key of fieldKeys) {
+        terminal(`^b${key}^: = ^g${JSON.stringify(transitionObj.fields[key])}^:\n`);
+      }
       process.exit();
     } else {
       terminal(`Could not set ^b${argv.issue}^: to ^g"${transition[1]}"^:\n`);
