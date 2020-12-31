@@ -14,6 +14,7 @@ export interface IRepositoryPath {
 const JIRACloudCacheFilter: rm.ResourceId[] = [
   // TODO
   ['resolution'],
+  ['issue', 'createmeta'],
   // ['workspaces'],
   // ['workspaces', '*', 'members'],
   // ['repositories', '*'],
@@ -283,6 +284,15 @@ export class Jira {
     return await this.get(this.issueList(numIssues), parameters, 'search');
   }
 
+  async getCreateMeta(parameters: rm.Parameters) {
+    return await this.get(this.json(), parameters, 'issue', 'createmeta');
+  }
+
+  async createIssue(data: any) {
+    return await this.post(this.json(), data, new Map(), 'issue');
+  }
+
+  // OLD BB from here
   async getPullrequests(user: string) {
     return await this.get(this.jsonList(), new Map(), 'pullrequests', user);
   }

@@ -26,10 +26,16 @@ exports.builder = (yargs: yargs.Argv<{}>) => {
       description: 'Resolution of issue',
       default: null,
     })
+    .option('i', {
+      alias: 'interactive',
+      type: 'boolean',
+      description: 'Select the transition interactively',
+      default: false,
+    })
     .option('list-resolutions', {
       type: 'boolean',
       description: 'Will list all possible resolutions',
-      default: null,
+      default: false,
     });
 };
 
@@ -54,11 +60,38 @@ async function handleResolution(jira: jirac.Jira, argv: any, transition: any) {
   const resolutionName = argv.resolution.toLowerCase();
   let resolution = _.find(names, (x) => x.toLowerCase() === resolutionName);
   if (!resolution) {
-    terminal.error(`Could not find resolution ^r${argv.resolution}\n`);
+    terminal.error(`Could not find resolution ^r"${argv.resolution}"^:\n`);
     process.exit(1);
   }
   const fullName = resolution;
   transition.fields['resolution'] = { name: fullName };
+}
+
+async function getTransition(
+  argv: any,
+  availableTransitions: any[],
+  currentStatus: string
+) {
+  let transition = null;
+  if (argv.state) {
+    let targetState = argv.state.toLowerCase();
+    transition = _.find(
+      availableTransitions,
+      (x: any) => x[1].toLowerCase() === targetState
+    );
+    if (!transition) {
+      terminal.error.red(`Could not find transition ${argv.state}\n\n`);
+      printTransitions(currentStatus, availableTransitions);
+      process.exit(1);
+    }
+  } else {
+    const transitionNames = availableTransitions.map((x: any) => x[1]);
+    let selected = await terminal.singleRowMenu(transitionNames, {}).promise;
+    terminal('\n');
+    terminal(`Using transition ^g"${selected.selectedText}"^:\n`);
+    transition = availableTransitions[selected.selectedIndex];
+  }
+  return transition;
 }
 
 exports.handler = async (argv: any) => {
@@ -102,20 +135,29 @@ exports.handler = async (argv: any) => {
     x.name,
     x.isAvailable,
   ]);
-  if (!argv.state) {
+  if (!argv.state && !argv.interactive) {
     printTransitions(currentStatus, availableTransitions);
   } else {
-    let targetState = argv.state.toLowerCase();
-    let transition = _.find(
-      availableTransitions,
-      (x: any) => x[1].toLowerCase() === targetState
-    );
-    // console.log(transition);
-    if (!transition) {
-      terminal.error.red(`Could not find transition ${argv.state}\n\n`);
-      printTransitions(currentStatus, availableTransitions);
-      process.exit(1);
+    let transition = null;
+    if (argv.state) {
+      let targetState = argv.state.toLowerCase();
+      transition = _.find(
+        availableTransitions,
+        (x: any) => x[1].toLowerCase() === targetState
+      );
+      if (!transition) {
+        terminal.error.red(`Could not find transition ${argv.state}\n\n`);
+        printTransitions(currentStatus, availableTransitions);
+        process.exit(1);
+      }
+    } else {
+      const transitionNames = availableTransitions.map((x: any) => x[1]);
+      let selected = await terminal.singleRowMenu(transitionNames, {}).promise;
+      terminal('\n');
+      terminal(`Using transition ^g"${selected.selectedText}"^:\n`);
+      transition = availableTransitions[selected.selectedIndex];
     }
+
     const transitionObj = {
       fields: {},
       transition: {
