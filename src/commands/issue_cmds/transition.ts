@@ -86,6 +86,7 @@ async function getTransition(
     }
   } else {
     const transitionNames = availableTransitions.map((x: any) => x[1]);
+    terminal(`Current status: ^g"${currentStatus}"^:`);
     let selected = await terminal.singleRowMenu(transitionNames, {}).promise;
     terminal('\n');
     terminal(`Using transition ^g"${selected.selectedText}"^:\n`);
@@ -138,25 +139,7 @@ exports.handler = async (argv: any) => {
   if (!argv.state && !argv.interactive) {
     printTransitions(currentStatus, availableTransitions);
   } else {
-    let transition = null;
-    if (argv.state) {
-      let targetState = argv.state.toLowerCase();
-      transition = _.find(
-        availableTransitions,
-        (x: any) => x[1].toLowerCase() === targetState
-      );
-      if (!transition) {
-        terminal.error.red(`Could not find transition ${argv.state}\n\n`);
-        printTransitions(currentStatus, availableTransitions);
-        process.exit(1);
-      }
-    } else {
-      const transitionNames = availableTransitions.map((x: any) => x[1]);
-      let selected = await terminal.singleRowMenu(transitionNames, {}).promise;
-      terminal('\n');
-      terminal(`Using transition ^g"${selected.selectedText}"^:\n`);
-      transition = availableTransitions[selected.selectedIndex];
-    }
+    let transition = await getTransition(argv, availableTransitions, currentStatus);
 
     const transitionObj = {
       fields: {},
