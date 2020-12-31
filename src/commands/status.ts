@@ -6,7 +6,7 @@ import tkit from 'terminal-kit';
 const terminal = tkit.terminal;
 
 exports.command = 's';
-exports.aliases = ['$0', 'status'];
+exports.aliases = ['status'];
 exports.desc = 'Shows current status';
 exports.builder = (yargs: yargs.Argv<{}>) => {
   return yargs

@@ -22,6 +22,7 @@ terminal.on('key', (key: string) => {
 const base = yargs
   .scriptName('drifter')
   .version('v0.0.1')
+  .usage('drifter - The friendly JIRA CLI')
   .alias('h', 'help')
   .strict(true)
   .demandCommand()

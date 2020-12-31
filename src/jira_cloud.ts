@@ -260,20 +260,40 @@ export class Jira {
     return await this.get(this.json(), new Map(), 'myself');
   }
 
+  async searchUsers(parameters: rm.Parameters) {
+    return await this.get(this.json(), parameters, 'user', 'search');
+  }
+
   async getIssue(issue: string) {
+    if (!issue) {
+      return null;
+    }
     return await this.get(this.json(), new Map(), 'issue', issue);
   }
 
   async getTransitions(issue: string, parameters: rm.Parameters) {
+    if (!issue) {
+      return null;
+    }
     return await this.get(this.json(), parameters, 'issue', issue, 'transitions');
   }
 
   async postTransition(issue: string, data: any) {
+    if (!issue) {
+      return null;
+    }
     return await this.post(this.status(), data, new Map(), 'issue', issue, 'transitions');
   }
 
   async getResolutions() {
     return await this.get(this.json(), new Map(), 'resolution');
+  }
+
+  async getProject(project: string) {
+    if (!project) {
+      return null;
+    }
+    return await this.get(this.json(), new Map(), 'project', project);
   }
 
   async searchProjects(parameters: rm.Parameters) {
@@ -289,6 +309,9 @@ export class Jira {
   }
 
   async createIssue(data: any) {
+    if (!data) {
+      return null;
+    }
     return await this.post(this.json(), data, new Map(), 'issue');
   }
 
