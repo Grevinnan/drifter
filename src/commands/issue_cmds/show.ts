@@ -22,7 +22,7 @@ exports.handler = async (argv: any) => {
     terminal.error.red(`Could not find issue ${argv.issue}\n`);
     process.exit(1);
   }
-  // console.log(issue);
+  console.log(issue);
   // process.exit(0);
   const key = issue.key;
   const fields = issue.fields;

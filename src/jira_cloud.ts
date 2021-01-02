@@ -236,6 +236,7 @@ export class Jira {
     return await this.get(handler, new Map(), ...resourceParts);
   }
 
+  // TODO: refactor these into shorter functions
   async get<T>(handler: rm.IDataHandler<T>, parameters: rm.Parameters, ...id: string[]) {
     let resource: rm.IResource = {
       server: 'jira-cloud',
@@ -256,11 +257,28 @@ export class Jira {
     return await this.manager.post(resource, handler);
   }
 
+  async put<T>(handler: rm.IDataHandler<T>, data: any, parameters: rm.Parameters, ...id: string[]) {
+    let resource: rm.IResource = {
+      server: 'jira-cloud',
+      id: id,
+      parameters: parameters,
+      data: data,
+    };
+    return await this.manager.put(resource, handler);
+  }
+
   async getUser() {
     return await this.get(this.json(), new Map(), 'myself');
   }
 
   async searchUsers(parameters: rm.Parameters) {
+    return await this.get(this.json(), parameters, 'user', 'search');
+  }
+
+  // Convenience function
+  async searchUsersByQuery(query: string) {
+    const parameters = new Map<String, String>();
+    parameters.set('query', query);
     return await this.get(this.json(), parameters, 'user', 'search');
   }
 
@@ -313,6 +331,20 @@ export class Jira {
       return null;
     }
     return await this.post(this.json(), data, new Map(), 'issue');
+  }
+
+  async editIssue(issue: string, data: any) {
+    if (!data) {
+      return null;
+    }
+    return await this.put(this.status(), data, new Map(), 'issue', issue);
+  }
+
+  async assignIssue(issue: string, data: any) {
+    if (!data) {
+      return null;
+    }
+    return await this.put(this.status(), data, new Map(), 'issue', issue, 'assignee');
   }
 
   // OLD BB from here

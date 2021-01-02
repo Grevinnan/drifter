@@ -204,19 +204,31 @@ export default class ResourceManager {
     return result;
   }
 
-  async post<T>(resource: IResource, handler: IDataHandler<T>): Promise<T> {
+  async interactUncached<T>(resource: IResource, handler: IDataHandler<T>, method: string) {
     let result: T = null;
     let server = this.servers.get(resource.server);
     if (!server) {
       terminal.error(`No server ${resource.server} registered\n`);
       return result;
     }
-    result = await this.interact(resource, server, 'POST', handler);
+    result = await this.interact(resource, server, method, handler);
     if (!result) {
       this.options.verbose &&
-        terminal.error(`Could not POST ${resource.id.join('/')}, aborting.\n`);
+        terminal.error(`Could not ${method} ${resource.id.join('/')}, aborting.\n`);
       return null;
     }
     return result;
+  }
+
+  async post<T>(resource: IResource, handler: IDataHandler<T>): Promise<T> {
+    return this.interactUncached(resource, handler, 'POST');
+  }
+
+  async put<T>(resource: IResource, handler: IDataHandler<T>): Promise<T> {
+    return this.interactUncached(resource, handler, 'PUT');
+  }
+
+  async delete<T>(resource: IResource, handler: IDataHandler<T>): Promise<T> {
+    return this.interactUncached(resource, handler, 'DELETE');
   }
 }
