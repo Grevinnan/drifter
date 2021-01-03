@@ -26,7 +26,7 @@ export async function selectUser(
   let userIndex = 0;
   if (users.length > 1) {
     let userNames = users.map((x: any) => x.displayName);
-    terminal('Multiple matches, Please select user:\n');
+    terminal(`Multiple matches for ^g"${query}"^:, Please select user:\n`);
     let user = await terminal.singleRowMenu(userNames, {}).promise;
     terminal('\n\n');
     userIndex = user.selectedIndex;

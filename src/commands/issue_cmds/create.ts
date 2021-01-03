@@ -1,6 +1,7 @@
 import yargs from 'yargs';
 import getJira, * as jirac from '../../jira_cloud';
-import * as tu from '../../terminal_util';
+import * as su from '../../select_user';
+import * as dn from '../../description';
 
 import tkit from 'terminal-kit';
 const terminal = tkit.terminal;
@@ -19,6 +20,18 @@ exports.builder = (yargs: yargs.Argv<{}>) => {
       alias: 'assignee',
       type: 'string',
       description: 'Assignee',
+      default: null,
+    })
+    .option('s', {
+      alias: 'summary',
+      type: 'string',
+      description: 'Issue summary',
+      default: null,
+    })
+    .option('d', {
+      alias: 'description',
+      type: 'string',
+      description: 'Issue description',
       default: null,
     });
 };
@@ -39,9 +52,6 @@ exports.handler = async (argv: any) => {
   }
   // console.log(createMeta);
   // console.log(projectInfo);
-  let params = new Map<String, String>();
-  params.set('query', argv.assignee);
-  const users = await jira.searchUsers(params);
   // console.log(users);
   // process.exit(0);
   const project = createMeta.projects[0];
@@ -51,30 +61,52 @@ exports.handler = async (argv: any) => {
   let issueType = await terminal.singleRowMenu(issueTypeNames, {}).promise;
   terminal('\n');
   terminal(`${issueType.selectedText}\n`);
-  terminal('Summary: ');
-  let summary = await terminal.inputField({}).promise;
-  terminal('\n');
+  let summary = argv.summary;
+  if (!summary) {
+    terminal('Enter summary: ');
+    summary = await terminal.inputField({}).promise;
+    terminal('\n');
+  }
+  let description = argv.description;
+  if (!description) {
+    terminal('Enter description: ');
+    summary = await terminal.inputField({}).promise;
+    terminal('\n');
+  }
   let createObj = {
     fields: {},
     update: {},
   };
   const fields = createObj.fields;
   fields['summary'] = summary;
+  fields['description'] = dn.createParagraph(description);
   fields['issuetype'] = {
     id: issueTypes[issueType.selectedIndex].id,
   };
   fields['project'] = {
     id: projectInfo.id,
   };
-  // TODO: use edit-issue to assign instead
-  // if (argv.assignee) {
-  //   fields['assignee'] = {
-  //     // id: users[0].accountId,
-  //     name: 'Henrik Antonsson',
-  //   };
-  // }
-  console.log(fields);
+  if (argv.assignee) {
+    const selectOptions: su.ISelectUserOptions = {
+      required: true,
+      alwaysConfirm: true,
+    };
+    const accountId = await su.selectUser(jira, argv.assignee, selectOptions);
+    fields['assignee'] = {
+      id: accountId,
+    };
+  }
+
+  // console.log(fields);
+  // process.exit(0);
   let createResult = await jira.createIssue(createObj);
-  console.log(createResult);
+  // console.log(createResult);
+  if (createResult) {
+    terminal(`Created issue ${createResult.key}\n`);
+    terminal(`${jira.getIssueURL(createResult.key)}\n`);
+  } else {
+    terminal.error.red('Could not create issue\n');
+    process.exit(1);
+  }
   process.exit();
 };

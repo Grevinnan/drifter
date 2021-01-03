@@ -1,6 +1,7 @@
 import yargs from 'yargs';
 import getJira, * as jirac from '../../jira_cloud';
 import * as su from '../../select_user';
+import * as dn from '../../description';
 
 import tkit from 'terminal-kit';
 const terminal = tkit.terminal;
@@ -26,6 +27,12 @@ exports.builder = (yargs: yargs.Argv<{}>) => {
       type: 'string',
       description: 'Issue summary',
       default: null,
+    })
+    .option('d', {
+      alias: 'description',
+      type: 'string',
+      description: 'Issue description',
+      default: null,
     });
 };
 
@@ -47,6 +54,10 @@ exports.handler = async (argv: any) => {
 
   if (argv.summary) {
     editData.fields['summary'] = argv.summary;
+  }
+
+  if (argv.description) {
+    editData.fields['description'] = dn.createParagraph(argv.description);
   }
 
   const editResult = await jira.editIssue(argv.issue, editData);

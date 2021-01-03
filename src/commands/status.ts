@@ -40,7 +40,7 @@ exports.handler = async (argv: any) => {
     };
     assignee = await su.selectUser(jira, argv.assignee, selectOptions);
   }
-  let jql = `assignee = "${assignee}"`;
+  let jql = `assignee = ${assignee}`;
   // jql = jql + ` AND status NOT IN (done,closed,"awaiting release",resolved,backlog)`;
   jql = jql + ` AND status IN ("in progress","selected for development")`;
   jql = jql + ' ORDER BY created DESC';

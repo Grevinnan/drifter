@@ -27,7 +27,7 @@ class JiraCloud implements rm.IServer {
   cachePaths: rm.ResourceId[];
   constructor(server: IServer) {
     this.server = server;
-    this.url = server.url;
+    this.url = `${server.url}/rest/api/3/`;
     this.cachePaths = JIRACloudCacheFilter;
   }
   setAuthorization(request: sa.SuperAgentRequest): sa.SuperAgentRequest {
@@ -199,6 +199,10 @@ export class Jira {
     this.manager = new ResourceManager(options);
     this.JiraCloud = new JiraCloud(config.server);
     this.manager.registerServer('jira-cloud', this.JiraCloud);
+  }
+
+  getIssueURL(issue: string) {
+    return `${this.config.server.url}/browse/${issue}`
   }
 
   jsonList(maxPages: number = 0, listName: string = 'values') {

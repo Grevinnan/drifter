@@ -61,7 +61,7 @@ export default class Config {
       terminal('\nPlease enter your API key (not password, see documentation): ');
       let apiKey = await terminal.inputField({}).promise;
       this.server = {
-        url: url,
+        url: url.replace(/\/+$/, ''),
         username: username,
         authorization: Buffer.from(`${username}:${apiKey}`).toString('base64'),
       };
