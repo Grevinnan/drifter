@@ -34,7 +34,11 @@ exports.handler = async (argv: any) => {
   let parameters = new Map<String, String>();
   let assignee = 'currentUser()';
   if (argv.assignee) {
-    assignee = await su.selectUser(jira, argv.assignee);
+    const selectOptions: su.ISelectUserOptions = {
+      required: true,
+      alwaysConfirm: false,
+    };
+    assignee = await su.selectUser(jira, argv.assignee, selectOptions);
   }
   let jql = `assignee = "${assignee}"`;
   // jql = jql + ` AND status NOT IN (done,closed,"awaiting release",resolved,backlog)`;

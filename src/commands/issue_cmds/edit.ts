@@ -37,7 +37,11 @@ exports.handler = async (argv: any) => {
     fields: {},
   };
   if (argv.assignee) {
-    const accountId = await su.selectUser(jira, argv.assignee);
+    const selectOptions: su.ISelectUserOptions = {
+      required: true,
+      alwaysConfirm: true,
+    };
+    const accountId = await su.selectUser(jira, argv.assignee, selectOptions);
     editData.fields['assignee'] = { id: accountId };
   }
 
