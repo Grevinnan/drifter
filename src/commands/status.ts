@@ -1,6 +1,7 @@
 import yargs from 'yargs';
 import getJira, * as jirac from '../jira_cloud';
 import _ from 'lodash';
+import * as su from '../select_user';
 
 import tkit from 'terminal-kit';
 const terminal = tkit.terminal;
@@ -33,9 +34,9 @@ exports.handler = async (argv: any) => {
   let parameters = new Map<String, String>();
   let assignee = 'currentUser()';
   if (argv.assignee) {
-    assignee = argv.assignee;
+    assignee = await su.selectUser(jira, argv.assignee);
   }
-  let jql = `assignee = ${assignee}`;
+  let jql = `assignee = "${assignee}"`;
   // jql = jql + ` AND status NOT IN (done,closed,"awaiting release",resolved,backlog)`;
   jql = jql + ` AND status IN ("in progress","selected for development")`;
   jql = jql + ' ORDER BY created DESC';
