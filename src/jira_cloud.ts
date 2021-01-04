@@ -399,7 +399,7 @@ export async function getConfig() {
 function getOptions(argv): rm.IManagerOptions {
   const managerOptions: rm.IManagerOptions = {
     verbose: argv.v,
-    forceSynchronize: argv.s,
+    forceSynchronize: argv.f,
   };
   return managerOptions;
 }

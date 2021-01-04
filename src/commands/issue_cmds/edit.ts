@@ -33,6 +33,12 @@ exports.builder = (yargs: yargs.Argv<{}>) => {
       type: 'string',
       description: 'Issue description',
       default: null,
+    })
+    .option('n', {
+      alias: 'dry-run',
+      type: 'boolean',
+      description: 'Will not create an issue, only print the creation object',
+      default: false,
     });
 };
 
@@ -58,6 +64,17 @@ exports.handler = async (argv: any) => {
 
   if (argv.description) {
     editData.fields['description'] = dn.createParagraph(argv.description);
+  }
+
+  const numFields = Object.keys(editData.fields);
+  if (!numFields.length) {
+    terminal('No fields edited, aborting.\n');
+    process.exit();
+  }
+
+  if (argv['dry-run']) {
+    terminal(`${JSON.stringify(editData, null, 2)}\n`);
+    process.exit();
   }
 
   const editResult = await jira.editIssue(argv.issue, editData);

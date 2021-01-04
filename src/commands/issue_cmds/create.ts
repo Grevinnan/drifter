@@ -1,5 +1,6 @@
 import yargs from 'yargs';
 import getJira, * as jirac from '../../jira_cloud';
+import _ from 'lodash';
 import * as su from '../../select_user';
 import * as dn from '../../description';
 
@@ -15,6 +16,12 @@ exports.builder = (yargs: yargs.Argv<{}>) => {
       describe: 'Project key',
       type: 'string',
       default: '',
+    })
+    .option('t', {
+      alias: 'type',
+      type: 'string',
+      description: 'Type of issue',
+      default: null,
     })
     .option('a', {
       alias: 'assignee',
@@ -33,6 +40,12 @@ exports.builder = (yargs: yargs.Argv<{}>) => {
       type: 'string',
       description: 'Issue description',
       default: null,
+    })
+    .option('n', {
+      alias: 'dry-run',
+      type: 'boolean',
+      description: 'Will not create an issue, only print the creation object',
+      default: false,
     });
 };
 
@@ -47,20 +60,35 @@ exports.handler = async (argv: any) => {
   }
   const projectInfo = await jira.getProject(argv.project);
   if (!projectInfo) {
-    terminal.error.red(`Could not get project data for ${argv.project}\n`);
+    terminal.error(`Could not get project data for project ^r"${argv.project}"^:\n`);
     process.exit(1);
   }
   // console.log(createMeta);
   // console.log(projectInfo);
-  // console.log(users);
   // process.exit(0);
   const project = createMeta.projects[0];
   const issueTypes = project.issuetypes;
   const issueTypeNames = issueTypes.map((x: any) => x.name);
   // console.log(issueTypeNames);
-  let issueType = await terminal.singleRowMenu(issueTypeNames, {}).promise;
-  terminal('\n');
-  terminal(`${issueType.selectedText}\n`);
+  let issueTypeIndex = -1;
+  if (argv.type) {
+    let taskType = argv.type.toLowerCase();
+    let selectedType = _.findIndex(
+      issueTypeNames,
+      (x: string) => x.toLowerCase() === taskType
+    );
+    if (selectedType < 0) {
+      terminal.error(`No match for issue type ^r"${taskType}"^:, available types are:\n`);
+      terminal.error(`${issueTypeNames.join(',')}\n`);
+      process.exit(1);
+    }
+    issueTypeIndex = selectedType;
+  } else {
+    terminal('Please select issue-type:\n');
+    let issueType = await terminal.singleRowMenu(issueTypeNames, {}).promise;
+    terminal('\n');
+    issueTypeIndex = issueType.selectedIndex;
+  }
   let summary = argv.summary;
   if (!summary) {
     terminal('Enter summary: ');
@@ -70,7 +98,7 @@ exports.handler = async (argv: any) => {
   let description = argv.description;
   if (!description) {
     terminal('Enter description: ');
-    summary = await terminal.inputField({}).promise;
+    description = await terminal.inputField({}).promise;
     terminal('\n');
   }
   let createObj = {
@@ -81,7 +109,7 @@ exports.handler = async (argv: any) => {
   fields['summary'] = summary;
   fields['description'] = dn.createParagraph(description);
   fields['issuetype'] = {
-    id: issueTypes[issueType.selectedIndex].id,
+    id: issueTypes[issueTypeIndex].id,
   };
   fields['project'] = {
     id: projectInfo.id,
@@ -95,6 +123,11 @@ exports.handler = async (argv: any) => {
     fields['assignee'] = {
       id: accountId,
     };
+  }
+
+  if (argv['dry-run']) {
+    terminal(`${JSON.stringify(createObj, null, 2)}\n`);
+    process.exit();
   }
 
   // console.log(fields);
