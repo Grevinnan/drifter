@@ -21,25 +21,26 @@ exports.builder = (yargs: yargs.Argv<{}>) => {
       alias: 'type',
       type: 'string',
       description: 'Type of issue',
-      default: null,
+      requiresArg: true,
     })
     .option('a', {
       alias: 'assignee',
       type: 'string',
       description: 'Assignee',
-      default: null,
+      requiresArg: true,
     })
     .option('s', {
       alias: 'summary',
       type: 'string',
       description: 'Issue summary',
-      default: null,
+      requiresArg: true,
     })
     .option('d', {
       alias: 'description',
       type: 'string',
       description: 'Issue description',
       default: null,
+      requiresArg: true,
     })
     .option('n', {
       alias: 'dry-run',

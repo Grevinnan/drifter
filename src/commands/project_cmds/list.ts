@@ -13,7 +13,7 @@ exports.builder = (yargs: yargs.Argv<{}>) => {
         alias: 'query',
         type: 'string',
         description: 'Project query',
-        default: null,
+        requiresArg: true,
       });
 };
 

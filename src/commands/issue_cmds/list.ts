@@ -14,25 +14,26 @@ exports.builder = (yargs: yargs.Argv<{}>) => {
       alias: 'assignee',
       type: 'string',
       description: 'Assignee',
-      default: null,
+      requiresArg: true,
     })
     .option('p', {
       alias: 'project',
       type: 'string',
       description: 'Project',
-      default: null,
+      requiresArg: true,
     })
     .option('t', {
       alias: 'status',
       type: 'string',
-      description: 'Status',
-      default: null,
+      description: 'Issue status',
+      requiresArg: true,
     })
     .option('m', {
       alias: 'max_entries',
       type: 'number',
       description: 'Maximum number of issues',
       default: 20,
+      requiresArg: true,
     });
 };
 

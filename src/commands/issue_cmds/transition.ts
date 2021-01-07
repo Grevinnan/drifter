@@ -18,13 +18,13 @@ exports.builder = (yargs: yargs.Argv<{}>) => {
     .positional('state', {
       describe: 'Issue state',
       type: 'string',
-      default: null,
+      requiresArg: true,
     })
     .option('r', {
       alias: 'resolution',
       type: 'string',
       description: 'Resolution of issue',
-      default: null,
+      requiresArg: true,
     })
     .option('i', {
       alias: 'interactive',
