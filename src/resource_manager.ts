@@ -48,7 +48,7 @@ function getParametersString(parameters: Parameters) {
   const keyValues = Array.from(parameters.entries());
   let sorter = (a: [string, string], b: [string, string]) => a[0].localeCompare(b[0]);
   keyValues.sort(sorter);
-  const combined = keyValues.map((x) => `${x[0]}=${x[1]}`).join('|');
+  const combined = keyValues.map((x) => `${x[0]}='${x[1]}'`).join('|');
   return combined;
 }
 

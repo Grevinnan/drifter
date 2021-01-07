@@ -1,12 +1,13 @@
 import yargs from 'yargs';
 import getJira, * as jirac from '../../jira_cloud';
+import * as su from '../../select_user';
 
 import tkit from 'terminal-kit';
 const terminal = tkit.terminal;
 
 exports.command = 'list';
 exports.aliases = ['$0', 'l'];
-exports.desc = 'List projects';
+exports.desc = 'List issues';
 exports.builder = (yargs: yargs.Argv<{}>) => {
   return yargs
     .option('a', {
@@ -38,18 +39,25 @@ exports.builder = (yargs: yargs.Argv<{}>) => {
 exports.handler = async (argv: any) => {
   let jira = await getJira(argv);
   let parameters = new Map<String, String>();
-  let assignee = 'currentUser()';
+  let jql = '';
   if (argv.assignee) {
-    assignee = argv.assignee;
+    const selectOptions: su.ISelectUserOptions = {
+      required: true,
+      alwaysConfirm: false,
+    };
+    const accountId = await su.selectUser(jira, argv.assignee, selectOptions);
+    jql += `assignee IN (${accountId})`;
+  } else {
+    jql += 'assignee = currentUser()';
   }
-  let jql = `assignee = ${assignee}`;
+
   if (argv.project) {
-    jql = jql + ` AND project = "${argv.project}"`;
+    jql += ` AND project = "${argv.project}"`;
   }
   if (argv.status) {
-    jql = jql + ` AND status = "${argv.status}"`;
+    jql += ` AND status = "${argv.status}"`;
   }
-  jql = jql + ' ORDER BY created DESC';
+  jql += ' ORDER BY created DESC';
   parameters.set('jql', jql);
   parameters.set('maxResults', argv.max_entries);
   let issues = await jira.searchIssues(parameters, argv.max_entries);
