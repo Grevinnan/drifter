@@ -37,6 +37,13 @@ exports.builder = (yargs: yargs.Argv<{}>) => {
     });
 };
 
+function concatJql(jql: string, expr: string) {
+  if (jql) {
+    return `${jql} AND ${expr}`;
+  }
+  return expr;
+}
+
 exports.handler = async (argv: any) => {
   let jira = await getJira(argv);
   let parameters = new Map<String, String>();
@@ -46,17 +53,26 @@ exports.handler = async (argv: any) => {
       required: true,
       alwaysConfirm: false,
     };
-    const accountId = await su.selectUser(jira, argv.assignee, selectOptions);
-    jql += `assignee IN (${accountId})`;
-  } else {
-    jql += 'assignee = currentUser()';
+    let assignees = argv.assignee.split(',');
+    let ids = [];
+    for (let a of assignees) {
+      const accountId = await su.selectUser(jira, a, selectOptions);
+      ids.push(accountId);
+    }
+    const allIds = ids.join(',');
+    jql = concatJql(jql, `assignee IN (${allIds})`);
   }
 
   if (argv.project) {
-    jql += ` AND project = "${argv.project}"`;
+    jql = concatJql(jql, `project IN (${argv.project})`);
   }
   if (argv.status) {
-    jql += ` AND status = "${argv.status}"`;
+    // Surround statuses with quotes to allow states with spaces in them
+    let statuses = argv.status
+      .split(',')
+      .map((x: string) => `"${x}"`)
+      .join(',');
+    jql = concatJql(jql, `status IN (${statuses})`);
   }
   jql += ' ORDER BY created DESC';
   parameters.set('jql', jql);
@@ -66,10 +82,19 @@ exports.handler = async (argv: any) => {
     terminal.error.red('Could not get issues\n');
     process.exit(1);
   }
-  // console.log(issues);
-  let issueSummary = issues.map((x) => [x.key, x.fields.status.name, x.fields.summary]);
+
+  let issueSummary = issues.map((x) => [
+    x.key,
+    x.fields.status.name,
+    x.fields.summary,
+    x.fields.assignee,
+  ]);
   for (let n of issueSummary) {
-    terminal(`^g${n[0]}^: ^y"${n[1]}"^: ${n[2]}\n`);
+    terminal(`^g${n[0]}^: ^y"${n[1]}"^: ${n[2]} `);
+    if (n[3]) {
+      terminal(`^b${n[3].displayName}^:`);
+    }
+    terminal('\n');
   }
 
   process.exit();
