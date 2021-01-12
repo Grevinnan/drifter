@@ -15,7 +15,8 @@ terminal.on('key', (key: string) => {
     terminal.fullscreen(false);
     terminal.applicationKeypad(false);
     terminal.hideCursor(false);
-    process.exit();
+    terminal.styleReset();
+    terminal.processExit(0);
   }
 });
 
