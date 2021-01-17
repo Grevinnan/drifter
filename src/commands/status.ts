@@ -38,7 +38,47 @@ exports.builder = (yargs: yargs.Argv<{}>) => {
     });
 };
 
-// X = in,ex :)
+async function getStatusJql(jira: jirac.Jira, user: string, config: cg.IStatusConfig) {
+  let assignee = 'currentUser()';
+  if (user) {
+    const selectOptions: su.ISelectUserOptions = {
+      required: true,
+      alwaysConfirm: false,
+    };
+    assignee = await su.selectUser(jira, user, selectOptions);
+  }
+  let jql = `assignee = ${assignee}`;
+  jql = ju.concatJql(jql, toJql(config));
+  return jql;
+}
+
+async function getIssues(
+  jira: jirac.Jira,
+  user: string,
+  config: cg.IStatusConfig,
+  maxEntries: number = 0
+) {
+  let jql = await getStatusJql(jira, user, config);
+  let issues = await jira.searchIssuesWithJql(jql, maxEntries);
+  return issues;
+}
+
+function formatIssues(issues: any[]): string {
+  let formatted = '';
+  let statuses = _.uniq(issues.map(status).map((x) => x.toLowerCase()));
+  for (let s of statuses) {
+    // console.log(s);
+    formatted += `^b${s}^:\n`;
+    let statusIssues = _.filter(issues, (i: any) => status(i).toLowerCase() === s);
+    let issueData = statusIssues.map((x) => [key(x), summary(x)]);
+    for (let n of issueData) {
+      formatted += `^g${n[0]}^: ${n[1]}\n`;
+    }
+    formatted += '\n';
+  }
+  return formatted;
+}
+
 function parseMode(value: string): string {
   let jql = '';
   if (value === 'include') {
@@ -61,14 +101,14 @@ function trimSpace(str: string): string {
   return str;
 }
 
-function toStringList(strList : string) : string[] {
+function toStringList(strList: string): string[] {
   let trimmed = trimSpace(strList);
   let elements = trimmed.split(',');
   return _.filter(elements, (x) => x !== '');
 }
 
-function createStatusConfig(config: any) : cg.IStatusConfig {
-  let statusConfig : cg.IStatusConfig = cg.createDefaultStatusConfig();
+function createStatusConfig(config: any): cg.IStatusConfig {
+  let statusConfig: cg.IStatusConfig = cg.createDefaultStatusConfig();
   if (config.projects) {
     statusConfig.projects = toStringList(config.projects);
   }
@@ -80,11 +120,11 @@ function createStatusConfig(config: any) : cg.IStatusConfig {
   return statusConfig;
 }
 
-function toJqlList(values : string[]) : string {
-  return values.map((x: string) => `"${x}"`).join(',')
+function toJqlList(values: string[]): string {
+  return values.map((x: string) => `"${x}"`).join(',');
 }
 
-// TODO: remove newlines, spaces, *, help labels?, readme installation, edit config, read config, edit issue
+// TODO: help labels?, readme installation, edit config, read config, edit issue
 function toJql(config: cg.IStatusConfig) {
   let jql = '';
   if (config.projects.length > 0) {
@@ -124,7 +164,7 @@ exports.handler = async (argv: any) => {
         x: 0,
         y: 1,
         widthPercent: 100,
-        heightPercent: 90,
+        heightPercent: 95,
         rows: [
           {
             id: 'formRow',
@@ -146,8 +186,8 @@ exports.handler = async (argv: any) => {
       content: `Configuring status board ^b"${argv.name}"^:`,
       contentHasMarkup: true,
       attr: { bgColor: terminal.bgDefaultColor() },
-      x:0,
-      y:0,
+      x: 0,
+      y: 0,
       autoWidth: true,
       height: 1,
     });
@@ -159,6 +199,7 @@ exports.handler = async (argv: any) => {
     const projectsMode = statusConfig.projectsMode;
     const statusesStr = statusConfig.statuses.join(',');
     const statusesMode = statusConfig.statusesMode;
+
     // @ts-ignore
     let form = new tkit.Form({
       parent: document.elements.form,
@@ -205,8 +246,12 @@ exports.handler = async (argv: any) => {
       ],
       buttons: [
         {
-          content: '<Ok>',
-          value: 'ok',
+          content: '<Save>',
+          value: 'save',
+        },
+        {
+          content: '<Preview>',
+          value: 'preview',
         },
         {
           content: '<Close>',
@@ -227,7 +272,7 @@ exports.handler = async (argv: any) => {
 
     form.on('submit', onSubmit);
 
-    function onSubmit(value: any) {
+    async function onSubmit(value: any) {
       if (value.submit === 'close') {
         // TODO: a terminate function
         terminal.grabInput(false);
@@ -235,11 +280,21 @@ exports.handler = async (argv: any) => {
         terminal.applicationKeypad(false);
         terminal.hideCursor(false);
         process.exit();
+      } else if (value.submit === 'save') {
+        let config: cg.IStatusConfig = createStatusConfig(value.fields);
+        // sanitizeStatusConfig(config);
+        statusBox.setContent(toJql(config), false);
+        jira.getConfig().setStatusConfig(argv.name, config);
+      } else if (value.submit === 'preview') {
+        let config: cg.IStatusConfig = createStatusConfig(value.fields);
+        statusBox.setContent('Loading status...', false);
+        let issues = await getIssues(jira, argv.assignee, config);
+        if (!issues) {
+          statusBox.setContent('Could not get issues!', false);
+          return;
+        }
+        statusBox.setContent(formatIssues(issues), true);
       }
-      let config: cg.IStatusConfig = createStatusConfig(value.fields);
-      // sanitizeStatusConfig(config);
-      statusBox.setContent(toJql(config), false);
-      jira.getConfig().setStatusConfig(argv.name, config);
     }
 
     document.giveFocusTo(form);
@@ -248,41 +303,12 @@ exports.handler = async (argv: any) => {
       terminal.error(`No config found for ${argv.name}, run with -c to configure.\n`);
       process.exit(1);
     }
-    let parameters = new Map<String, String>();
-    let assignee = 'currentUser()';
-    if (argv.assignee) {
-      const selectOptions: su.ISelectUserOptions = {
-        required: true,
-        alwaysConfirm: false,
-      };
-      assignee = await su.selectUser(jira, argv.assignee, selectOptions);
-    }
-    let jql = `assignee = ${assignee}`;
-    // jql = jql + ` AND status NOT IN (done,closed,"awaiting
-    // release",resolved,backlog)`;
-    jql = ju.concatJql(jql, toJql(statusConfig));
-    // jql = jql + ` AND status IN ("in progress","selected for development")`;
-    // jql = jql + ' ORDER BY created DESC';
-    parameters.set('jql', jql);
-    if (argv.max_entries > 0) {
-      parameters.set('maxResults', argv.max_entries);
-    }
-    let issues = await jira.searchIssues(parameters, argv.max_entries);
+    let issues = await getIssues(jira, argv.assignee, statusConfig, argv.max_entries);
     if (!issues) {
       terminal.error.red('Could not get issues\n');
       process.exit(1);
     }
-    let statuses = _.uniq(issues.map(status).map((x) => x.toLowerCase()));
-    for (let s of statuses) {
-      // console.log(s);
-      terminal.blue(`${s}\n`);
-      let statusIssues = _.filter(issues, (i: any) => status(i).toLowerCase() === s);
-      let issueData = statusIssues.map((x) => [key(x), summary(x)]);
-      for (let n of issueData) {
-        terminal(`^g${n[0]}^: ${n[1]}\n`);
-      }
-      terminal('\n');
-    }
+    terminal(formatIssues(issues));
     process.exit();
   }
 };

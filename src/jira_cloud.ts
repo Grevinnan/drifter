@@ -340,6 +340,15 @@ export class Jira {
     return await this.get(this.issueList(numIssues), parameters, 'search');
   }
 
+  async searchIssuesWithJql(jql: string, numIssues: number = 0) {
+    let parameters = new Map<String, String>();
+    parameters.set('jql', jql);
+    if (numIssues > 0) {
+      parameters.set('maxResults', numIssues.toString());
+    }
+    return await this.get(this.issueList(numIssues), parameters, 'search');
+  }
+
   async getCreateMeta(parameters: rm.Parameters) {
     return await this.get(this.json(), parameters, 'issue', 'createmeta');
   }
