@@ -197,12 +197,16 @@ export class Jira {
   constructor(config: Config, options: rm.IManagerOptions) {
     this.config = config;
     this.manager = new ResourceManager(options);
-    this.JiraCloud = new JiraCloud(config.server);
+    this.JiraCloud = new JiraCloud(config.getServer());
     this.manager.registerServer('jira-cloud', this.JiraCloud);
   }
 
+  getConfig(): Config {
+    return this.config;
+  }
+
   getIssueURL(issue: string) {
-    return `${this.config.server.url}/browse/${issue}`
+    return `${this.config.getServer().url}/browse/${issue}`;
   }
 
   jsonList(maxPages: number = 0, listName: string = 'values') {
@@ -251,7 +255,12 @@ export class Jira {
     return await this.manager.get(resource, handler);
   }
 
-  async post<T>(handler: rm.IDataHandler<T>, data: any, parameters: rm.Parameters, ...id: string[]) {
+  async post<T>(
+    handler: rm.IDataHandler<T>,
+    data: any,
+    parameters: rm.Parameters,
+    ...id: string[]
+  ) {
     let resource: rm.IResource = {
       server: 'jira-cloud',
       id: id,
@@ -261,7 +270,12 @@ export class Jira {
     return await this.manager.post(resource, handler);
   }
 
-  async put<T>(handler: rm.IDataHandler<T>, data: any, parameters: rm.Parameters, ...id: string[]) {
+  async put<T>(
+    handler: rm.IDataHandler<T>,
+    data: any,
+    parameters: rm.Parameters,
+    ...id: string[]
+  ) {
     let resource: rm.IResource = {
       server: 'jira-cloud',
       id: id,

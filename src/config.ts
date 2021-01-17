@@ -14,32 +14,46 @@ export interface IServer {
 
 export interface ICacheOptions {}
 
-export interface IOptions {
-  cache?: ICacheOptions;
+export interface IStatusConfig {
+  projects: string;
+  projectsXclude: string;
+  statuses: string;
+  statusesXclude: string;
 }
 
 export default class Config {
   configDirectory: string;
   configPath: string;
-  server: IServer;
-  options: IOptions;
-  reviewers?: any;
+  config: any;
 
   constructor() {
     this.configDirectory = getXdgDirectory('config', true);
     this.configPath = path.join(this.configDirectory, 'config.json');
-    this.server = null;
-    this.options = {};
+    this.config = null;
+  }
+
+  getServer(): IServer {
+    return this.config.server;
+  }
+
+  getStatusConfigs(): Map<string, IStatusConfig> {
+    return this.config.statusConfigs;
   }
 
   checkConfig(): boolean {
     if (fs.existsSync(this.configPath)) {
-      let configObject = JSON.parse(fs.readFileSync(this.configPath, 'utf-8'));
-      this.server = configObject.server;
-      this.reviewers = configObject.reviewers;
+      this.config = JSON.parse(fs.readFileSync(this.configPath, 'utf-8'));
       return true;
     } else {
       return false;
+    }
+  }
+
+  writeConfig() {
+    if (this.config) {
+      fs.writeFileSync(this.configPath, JSON.stringify(this.config, null, 4));
+    } else {
+      terminal.error('Can not write an empty config\n');
     }
   }
 
@@ -60,16 +74,26 @@ export default class Config {
       let username = await terminal.inputField({}).promise;
       terminal('\nPlease enter your API key (not password, see documentation): ');
       let apiKey = await terminal.inputField({}).promise;
-      this.server = {
-        url: url.replace(/\/+$/, ''),
-        username: username,
-        authorization: Buffer.from(`${username}:${apiKey}`).toString('base64'),
+      const server : IServer = {
+          url: url.replace(/\/+$/, ''),
+          username: username,
+          authorization: Buffer.from(`${username}:${apiKey}`).toString('base64'),
       };
-      let configData = {
-        server: this.server,
-        options: {},
+      const defaultStatus : IStatusConfig = {
+        projects: '',
+        projectsXclude: 'include',
+        statuses: '',
+        statusesXclude: 'include',
       };
-      fs.writeFileSync(this.configPath, JSON.stringify(configData, null, 4));
+      const configData = {
+        server: server,
+        statusConfigs: {
+          default: defaultStatus,
+        },
+        aliases: {},
+      };
+      this.config = configData;
+      this.writeConfig();
       configLoaded = true;
     }
 
@@ -87,5 +111,14 @@ export default class Config {
         terminal('Configuration deleted successfully!\n');
       }
     }
+  }
+
+  getStatusConfig(name: string) : IStatusConfig {
+    return this.config.statusConfigs[name];
+  }
+
+  setStatusConfig(name: string, config: IStatusConfig) {
+    this.config.statusConfigs[name] = config;
+    this.writeConfig();
   }
 }

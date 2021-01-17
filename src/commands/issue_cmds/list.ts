@@ -1,6 +1,7 @@
 import yargs from 'yargs';
 import getJira, * as jirac from '../../jira_cloud';
 import * as su from '../../select_user';
+import * as ju from '../../jql';
 
 import tkit from 'terminal-kit';
 const terminal = tkit.terminal;
@@ -37,13 +38,6 @@ exports.builder = (yargs: yargs.Argv<{}>) => {
     });
 };
 
-function concatJql(jql: string, expr: string) {
-  if (jql) {
-    return `${jql} AND ${expr}`;
-  }
-  return expr;
-}
-
 exports.handler = async (argv: any) => {
   let jira = await getJira(argv);
   let parameters = new Map<String, String>();
@@ -60,11 +54,11 @@ exports.handler = async (argv: any) => {
       ids.push(accountId);
     }
     const allIds = ids.join(',');
-    jql = concatJql(jql, `assignee IN (${allIds})`);
+    jql = ju.concatJql(jql, `assignee IN (${allIds})`);
   }
 
   if (argv.project) {
-    jql = concatJql(jql, `project IN (${argv.project})`);
+    jql = ju.concatJql(jql, `project IN (${argv.project})`);
   }
   if (argv.status) {
     // Surround statuses with quotes to allow states with spaces in them
@@ -72,7 +66,7 @@ exports.handler = async (argv: any) => {
       .split(',')
       .map((x: string) => `"${x}"`)
       .join(',');
-    jql = concatJql(jql, `status IN (${statuses})`);
+    jql = ju.concatJql(jql, `status IN (${statuses})`);
   }
   jql += ' ORDER BY created DESC';
   parameters.set('jql', jql);
