@@ -1,6 +1,17 @@
 # drifter
 A CLI for interfacing with the JIRA cloud REST API
 
+## Manual installation
+
+You have to have Node/npm installed.
+
+```
+npm ci
+npm run build
+```
+
+The script entry-point is the file bin/drifter.js
+
 ## Usage
 
 ### Setup
