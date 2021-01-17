@@ -4,6 +4,7 @@ import _ from 'lodash';
 import * as cg from '../config';
 import * as su from '../select_user';
 import * as ju from '../jql';
+import * as dn from '../description';
 
 import tkit from 'terminal-kit';
 const terminal = tkit.terminal;
@@ -17,6 +18,12 @@ exports.builder = (yargs: yargs.Argv<{}>) => {
       describe: 'Name of status board',
       type: 'string',
       default: 'default',
+    })
+    .option('d', {
+      alias: 'detailed',
+      type: 'boolean',
+      description: 'Show detailed status',
+      default: false,
     })
     .option('a', {
       alias: 'assignee',
@@ -63,16 +70,30 @@ async function getIssues(
   return issues;
 }
 
-function formatIssues(issues: any[]): string {
+function formatIssues(issues: any[], detailed: boolean = false): string {
   let formatted = '';
   let statuses = _.uniq(issues.map(status).map((x) => x.toLowerCase()));
   for (let s of statuses) {
-    // console.log(s);
     formatted += `^b${s}^:\n`;
     let statusIssues = _.filter(issues, (i: any) => status(i).toLowerCase() === s);
-    let issueData = statusIssues.map((x) => [key(x), summary(x)]);
+    let issueData = statusIssues.map((x) => [key(x), summary(x), description(x)]);
     for (let n of issueData) {
-      formatted += `^g${n[0]}^: ${n[1]}\n`;
+      // console.log(dn.parseDescription(n[2]));
+      // ${dn.parseDescription(n[2])}
+      let issueDetail = `^g${n[0]}^: ${n[1]}`;
+      formatted += issueDetail;
+      let description = dn.parseDescription(n[2]);
+      if (detailed) {
+        formatted += '\n';
+        formatted += `^K${description}^:`;
+      } else {
+        description = replaceAll(description, /\n+/, '');
+        const maxLen = terminal.width;
+        // 4 formatting characters, should be 3 but 4 works, newline?
+        const remaining = maxLen - (issueDetail.length - 4) - 4;
+        formatted += ` ^K${description.substring(0, remaining)}...^:`;
+      }
+      formatted += '\n';
     }
     formatted += '\n';
   }
@@ -147,6 +168,7 @@ function toJql(config: cg.IStatusConfig) {
 const key = (x: any) => x.key;
 const status = (x: any) => x.fields.status.name;
 const summary = (x: any) => x.fields.summary;
+const description = (x: any) => x.fields.description;
 
 exports.handler = async (argv: any) => {
   let jira = await getJira(argv);
@@ -268,6 +290,7 @@ exports.handler = async (argv: any) => {
       autoWidth: true,
       autoHeight: true,
       scrollable: true,
+      wordWrap: true,
     });
 
     form.on('submit', onSubmit);
@@ -282,7 +305,6 @@ exports.handler = async (argv: any) => {
         process.exit();
       } else if (value.submit === 'save') {
         let config: cg.IStatusConfig = createStatusConfig(value.fields);
-        // sanitizeStatusConfig(config);
         statusBox.setContent(toJql(config), false);
         jira.getConfig().setStatusConfig(argv.name, config);
       } else if (value.submit === 'preview') {
@@ -293,7 +315,7 @@ exports.handler = async (argv: any) => {
           statusBox.setContent('Could not get issues!', false);
           return;
         }
-        statusBox.setContent(formatIssues(issues), true);
+        statusBox.setContent(formatIssues(issues, argv.detailed), true);
       }
     }
 
@@ -308,7 +330,7 @@ exports.handler = async (argv: any) => {
       terminal.error.red('Could not get issues\n');
       process.exit(1);
     }
-    terminal(formatIssues(issues));
+    terminal(formatIssues(issues, argv.detailed));
     process.exit();
   }
 };

@@ -1,5 +1,6 @@
 import yargs from 'yargs';
 import getJira, * as jirac from '../../jira_cloud';
+import * as dn from '../../description';
 
 import tkit from 'terminal-kit';
 const terminal = tkit.terminal;
@@ -48,9 +49,7 @@ exports.handler = async (argv: any) => {
   const description = fields.description;
   let fullDescription = null;
   if (description) {
-    fullDescription = description.content
-      .map((x: any) => x.content.map((x: any) => x.text).join('\n'))
-      .join('\n');
+    fullDescription = dn.parseDescription(description);
   }
   terminal(`Key: ${key}\n`);
   terminal(`Summary: ${summary}\n`);
