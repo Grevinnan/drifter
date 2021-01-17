@@ -1,7 +1,7 @@
 import yargs from 'yargs';
 import getJira, * as jirac from '../jira_cloud';
 import _ from 'lodash';
-import { IStatusConfig } from '../config';
+import * as cg from '../config';
 import * as su from '../select_user';
 import * as ju from '../jql';
 
@@ -39,7 +39,7 @@ exports.builder = (yargs: yargs.Argv<{}>) => {
 };
 
 // X = in,ex :)
-function parseXclude(value: string): string {
+function parseMode(value: string): string {
   let jql = '';
   if (value === 'include') {
     jql = ' IN ';
@@ -55,34 +55,48 @@ function replaceAll(str: string, find: RegExp, replace: string) {
 }
 
 function trimSpace(str: string): string {
-  str = replaceAll(str, /\s+,\s+/, ',');
+  str = replaceAll(str, /\s*,\s*/, ',');
   str = replaceAll(str, /\s+/, ' ');
   str = str.trim();
   return str;
 }
 
-function sanitizeStatusConfig(config: IStatusConfig) {
+function toStringList(strList : string) : string[] {
+  let trimmed = trimSpace(strList);
+  let elements = trimmed.split(',');
+  return _.filter(elements, (x) => x !== '');
+}
+
+function createStatusConfig(config: any) : cg.IStatusConfig {
+  let statusConfig : cg.IStatusConfig = cg.createDefaultStatusConfig();
   if (config.projects) {
-    config.projects = trimSpace(config.projects);
-    config.projects = ju.quoteList(trimSpace(config.projects));
+    statusConfig.projects = toStringList(config.projects);
   }
+  statusConfig.projectsMode = config.projectsMode;
   if (config.statuses) {
-    config.statuses = trimSpace(config.statuses);
-    config.statuses = ju.quoteList(trimSpace(config.statuses));
+    statusConfig.statuses = toStringList(config.statuses);
   }
+  statusConfig.statusesMode = config.statusesMode;
+  return statusConfig;
+}
+
+function toJqlList(values : string[]) : string {
+  return values.map((x: string) => `"${x}"`).join(',')
 }
 
 // TODO: remove newlines, spaces, *, help labels?, readme installation, edit config, read config, edit issue
-function toJql(config: IStatusConfig) {
+function toJql(config: cg.IStatusConfig) {
   let jql = '';
-  if (config.projects) {
-    const xclude = parseXclude(config.projectsXclude);
-    const projectJql = ` project ${xclude} (${config.projects}) `;
+  if (config.projects.length > 0) {
+    const projects = toJqlList(config.projects);
+    const xclude = parseMode(config.projectsMode);
+    const projectJql = ` project ${xclude} (${projects}) `;
     jql = ju.concatJql(jql, projectJql);
   }
-  if (config.statuses) {
-    const xclude = parseXclude(config.statusesXclude);
-    const statusJql = ` status ${xclude} (${config.statuses}) `;
+  if (config.statuses.length > 0) {
+    const statuses = toJqlList(config.statuses);
+    const xclude = parseMode(config.statusesMode);
+    const statusJql = ` status ${xclude} (${statuses}) `;
     jql = ju.concatJql(jql, statusJql);
   }
   jql += ' ORDER BY created DESC';
@@ -96,6 +110,7 @@ const summary = (x: any) => x.fields.summary;
 
 exports.handler = async (argv: any) => {
   let jira = await getJira(argv);
+  let statusConfig = jira.getConfig().getStatusConfig(argv.name);
 
   if (argv.config) {
     terminal.fullscreen(true);
@@ -106,7 +121,10 @@ exports.handler = async (argv: any) => {
       parent: document,
       layout: {
         id: 'main',
+        x: 0,
+        y: 1,
         widthPercent: 100,
+        heightPercent: 90,
         rows: [
           {
             id: 'formRow',
@@ -115,12 +133,32 @@ exports.handler = async (argv: any) => {
           },
           {
             id: 'jqlRow',
+            heightPercent: 65,
             columns: [{ id: 'jql', widthPercent: 100 }],
           },
         ],
       },
     });
 
+    // @ts-ignore
+    const header = new tkit.TextBox({
+      parent: document,
+      content: `Configuring status board ^b"${argv.name}"^:`,
+      contentHasMarkup: true,
+      attr: { bgColor: terminal.bgDefaultColor() },
+      x:0,
+      y:0,
+      autoWidth: true,
+      height: 1,
+    });
+    if (!statusConfig) {
+      statusConfig = cg.createDefaultStatusConfig();
+    }
+    const projectsStr = statusConfig.projects.join(',');
+    // const projectsMode = statusConfig.projectsMode;
+    const projectsMode = statusConfig.projectsMode;
+    const statusesStr = statusConfig.statuses.join(',');
+    const statusesMode = statusConfig.statusesMode;
     // @ts-ignore
     let form = new tkit.Form({
       parent: document.elements.form,
@@ -131,16 +169,16 @@ exports.handler = async (argv: any) => {
         {
           key: 'projects',
           label: 'Projects: ',
-          content: '',
+          content: projectsStr,
           height: 4,
           scrollable: true,
           // vScrollBar: true,
         },
         {
-          key: 'projectsXclude',
+          key: 'projectsMode',
           label: 'Include/exclude projects: ',
           type: 'select',
-          value: 'include',
+          value: projectsMode,
           items: [
             { content: 'include', value: 'include' },
             { content: 'exclude', value: 'exclude' },
@@ -149,16 +187,16 @@ exports.handler = async (argv: any) => {
         {
           key: 'statuses',
           label: 'Statuses: ',
-          content: '',
+          content: statusesStr,
           height: 4,
           scrollable: true,
           // vScrollBar: true,
         },
         {
-          key: 'statusesXclude',
+          key: 'statusesMode',
           label: 'Include/exclude statuses: ',
           type: 'select',
-          value: 'include',
+          value: statusesMode,
           items: [
             { content: 'include', value: 'include' },
             { content: 'exclude', value: 'exclude' },
@@ -198,20 +236,18 @@ exports.handler = async (argv: any) => {
         terminal.hideCursor(false);
         process.exit();
       }
-      let config: IStatusConfig = value.fields;
-      sanitizeStatusConfig(config);
+      let config: cg.IStatusConfig = createStatusConfig(value.fields);
+      // sanitizeStatusConfig(config);
       statusBox.setContent(toJql(config), false);
       jira.getConfig().setStatusConfig(argv.name, config);
     }
 
     document.giveFocusTo(form);
   } else {
-    let statusConfig = jira.getConfig().getStatusConfig(argv.name);
     if (!statusConfig) {
       terminal.error(`No config found for ${argv.name}, run with -c to configure.\n`);
       process.exit(1);
     }
-    // if (
     let parameters = new Map<String, String>();
     let assignee = 'currentUser()';
     if (argv.assignee) {

@@ -14,11 +14,25 @@ export interface IServer {
 
 export interface ICacheOptions {}
 
+export enum EValueMode {
+  Include = "include",
+  Exclude = "exclude",
+}
+
 export interface IStatusConfig {
-  projects: string;
-  projectsXclude: string;
-  statuses: string;
-  statusesXclude: string;
+  projects: string[];
+  projectsMode: EValueMode;
+  statuses: string[];
+  statusesMode: EValueMode;
+}
+
+export function createDefaultStatusConfig() : IStatusConfig {
+  return {
+    projects: [],
+    projectsMode: EValueMode.Include,
+    statuses: [],
+    statusesMode: EValueMode.Include,
+  };
 }
 
 export default class Config {
@@ -79,12 +93,7 @@ export default class Config {
           username: username,
           authorization: Buffer.from(`${username}:${apiKey}`).toString('base64'),
       };
-      const defaultStatus : IStatusConfig = {
-        projects: '',
-        projectsXclude: 'include',
-        statuses: '',
-        statusesXclude: 'include',
-      };
+      const defaultStatus = createDefaultStatusConfig();
       const configData = {
         server: server,
         statusConfigs: {
